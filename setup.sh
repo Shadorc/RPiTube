@@ -1,7 +1,9 @@
 #!/bin/sh
 
 echo "Installing dependencies..."
-sudo apt-get install youtube-dl vlc node-express -y
+sudo apt-get install python3 pip vlc node-express -y
+wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O ~/.local/bin/yt-dlp
+chmod a+rx ~/.local/bin/yt-dlp  # Make executable
 
 echo "Downloading scripts..."
 DIR=$PWD
