@@ -14,7 +14,7 @@ app.get('/cast/:ip/:url', function (req, res) {
     }
 
     console.log(`Casting video to ${ip}...`);
-    if (!execSyncSafe(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast`)) {
+    if (!execSyncSafe(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast vlc://quit`)) {
         console.log("Casting video failed.");
         res.send("Casting video failed");
         return;
