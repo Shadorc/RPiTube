@@ -7,10 +7,18 @@ app.get('/cast/:ip/:url', function (req, res) {
     const url = req.params.url;
 
     console.log(`Downloading video ${url}...`);
-    execSync(`yt-dlp ${url} -f mp4 -o video.mp4`);
+    if (!execSyncSafe(`yt-dlp ${url} -f mp4 -o video.mp4`)) {
+        console.log("Downloading video failed.");
+        res.send("Downloading video failed");
+        return;
+    }
 
     console.log(`Casting video to ${ip}...`);
-    execSync(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast`);
+    if (!execSyncSafe(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast`)) {
+        console.log("Casting video failed.");
+        res.send("Casting video failed");
+        return;
+    }
 
     res.send(`Casting ${url} to Chromecast ${ip}`);
 });
@@ -31,5 +39,19 @@ function getLocalIP() {
     } catch (err) {
         console.error('Error getting local IP:', err);
         return 'unknown';
+    }
+}
+
+function execSyncSafe(cmd) {
+    try {
+        execSync(cmd);
+        return true;
+    } catch (error) {
+        console.error('Command failed:');
+        console.error(`  message: ${error.message}`);
+        console.error(`  status: ${error.status}`);
+        console.error(`  stdout: ${error.stdout?.toString()}`);
+        console.error(`  stderr: ${error.stderr?.toString()}`);
+        return false;
     }
 }
