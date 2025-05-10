@@ -10,7 +10,7 @@ app.post('/cast/:ip/:url', function (req, res) {
     exec(`youtube-dl ${url} -f mp4 -o video`);
 
     console.log(`Casting video...`);
-    exec(`cvlc video.mp4 --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast`);
+    exec(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast`);
 });
 
 var srv = app.listen(3000, function () {
