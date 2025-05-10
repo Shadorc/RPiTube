@@ -46,7 +46,7 @@ function getLocalIP() {
 
 function execSyncSafe(cmd) {
     try {
-        execSync(cmd, { stdio: 'pipe', encoding: 'utf-8' });
+        execSync(cmd, { stdio: 'inherit', encoding: 'utf-8' });
         return true;
     } catch (error) {
         console.error('Command failed:');
