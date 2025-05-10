@@ -10,6 +10,9 @@ mkdir -p $HOME/.local/bin
 wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O $HOME/.local/bin/yt-dlp
 chmod a+rx $HOME/.local/bin/yt-dlp  # Make executable
 
+echo "Configuring VLC..."
+sed -i 's/geteuid/getppid/' /usr/bin/vlc #https://unix.stackexchange.com/questions/125546/how-to-run-vlc-player-in-root
+
 echo "Downloading scripts..."
 DIR=$PWD
 GIT_URL="https://raw.githubusercontent.com/Shadorc/RPiTube/master"
