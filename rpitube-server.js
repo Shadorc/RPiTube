@@ -42,8 +42,8 @@ var srv = app.listen(3000, function () {
     var host = getLocalIP();
     var port = srv.address().port;
 
-    console.log('Access at http://%s:%s/cast/:chromecast-ip/:video-url', host, port);
-    console.log('VLC interface at http://%s:8080', host);
+    console.log('Cast URL: http://%s:%s/cast/:chromecast-ip/:video-url', host, port);
+    console.log('VLC interface: http://%s:8080', host);
 });
 
 function getLocalIP() {
