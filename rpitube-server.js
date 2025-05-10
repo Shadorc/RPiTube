@@ -6,6 +6,8 @@ app.get('/cast/:ip/:url', function (req, res) {
     const ip = req.params.ip;
     const url = req.params.url;
 
+    res.send(`Casting ${url} to Chromecast ${ip}`);
+
     console.log(`Downloading video ${url}...`);
     if (!execSyncSafe(`yt-dlp ${url} -f mp4 -o video.mp4`)) {
         console.log("Downloading video failed.");
@@ -19,8 +21,6 @@ app.get('/cast/:ip/:url', function (req, res) {
         res.send("Casting video failed");
         return;
     }
-
-    res.send(`Casting ${url} to Chromecast ${ip}`);
 });
 
 var srv = app.listen(3000, function () {
