@@ -1,16 +1,26 @@
 const { execSync } = require('child_process');
+const fs = require('fs');
+const { randomUUID } = require('crypto');
 const express = require('express');
 const app = express();
+
+const video_dir = "videos";
+if (!fs.existsSync(video_dir)) {
+  fs.mkdirSync(video_dir);
+}
 
 app.get('/cast/:ip/:url', function (req, res) {
     const ip = req.params.ip;
     const url = req.params.url;
 
+    const id = randomUUID();
+    const filepath = `${video_dir}/video-${id}.mp4`;
+
     res.send(`Casting ${url} to Chromecast ${ip}`);
 
     console.time('download');
     console.log(`Downloading video ${url}...`);
-    if (!execSyncSafe(`yt-dlp ${url} -f mp4 -o video.mp4`)) {
+    if (!execSyncSafe(`yt-dlp ${url} -f mp4 -o ${filepath}`)) {
         console.log("Downloading video failed.");
         res.send("Downloading video failed");
         return;
@@ -18,11 +28,14 @@ app.get('/cast/:ip/:url', function (req, res) {
     console.timeEnd('download');
 
     console.log(`Casting video to ${ip}...`);
-    if (!execSyncSafe(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast vlc://quit`)) {
+    if (!execSyncSafe(`vlc ${filepath} -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast vlc://quit`)) {
         console.log("Casting video failed.");
         res.send("Casting video failed");
         return;
     }
+
+    console.log('Video finished');
+    fs.unlinkSync(filepath);
 });
 
 var srv = app.listen(3000, function () {
