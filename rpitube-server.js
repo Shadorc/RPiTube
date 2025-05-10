@@ -24,7 +24,7 @@ var srv = app.listen(3000, function () {
 
 function getLocalIP() {
     try {
-        const output = execSync('hostname -I');
+        const output = execSync('hostname -I', { encoding: 'utf8' });
         const ips = output.trim().split(/\s+/);
         return ips[0] || 'unknown';
     } catch (err) {
