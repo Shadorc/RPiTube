@@ -8,12 +8,14 @@ app.get('/cast/:ip/:url', function (req, res) {
 
     res.send(`Casting ${url} to Chromecast ${ip}`);
 
+    console.time('download');
     console.log(`Downloading video ${url}...`);
     if (!execSyncSafe(`yt-dlp ${url} -f mp4 -o video.mp4`)) {
         console.log("Downloading video failed.");
         res.send("Downloading video failed");
         return;
     }
+    console.timeEnd('download');
 
     console.log(`Casting video to ${ip}...`);
     if (!execSyncSafe(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast vlc://quit`)) {
