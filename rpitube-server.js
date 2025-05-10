@@ -20,14 +20,14 @@ app.get('/cast/:ip/:url', function (req, res) {
 
     console.time('download');
     console.log(`Downloading video ${url}...`);
-    if (!execSyncSafe(`yt-dlp ${url} -f mp4 -o ${filepath}`)) {
+    if (!execSyncSafe(`yt-dlp '${url}' -f mp4 -o '${filepath}'`)) {
         console.log("Downloading video failed.");
         return;
     }
     console.timeEnd('download');
 
     console.log(`Casting video to ${ip}...`);
-    if (!execSyncSafe(`vlc ${filepath} -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast vlc://quit`)) {
+    if (!execSyncSafe(`vlc '${filepath}' -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast vlc://quit`)) {
         console.log("Casting video failed.");
         return;
     }
@@ -40,7 +40,7 @@ var srv = app.listen(3000, function () {
     var host = getLocalIP();
     var port = srv.address().port;
 
-    console.log('Cast URL: http://%s:%s/cast/:chromecast-ip/:video-url', host, port);
+    console.log('API URL: http://%s:%s/cast/:chromecast-ip/:video-url', host, port);
     console.log('VLC interface: http://%s:8080', host);
 });
 
@@ -63,8 +63,12 @@ function execSyncSafe(cmd) {
         console.error('Command failed:');
         console.error(`  message: ${error.message}`);
         console.error(`  status: ${error.status}`);
-        console.error(`  stdout: ${error.stdout?.toString()}`);
-        console.error(`  stderr: ${error.stderr?.toString()}`);
+        if (error.stdout) {
+            console.error(`  stdout: ${error.stdout.toString()}`);
+        }
+        if (error.stderr) {
+            console.error(`  stderr: ${error.stderr.toString()}`);
+        }
         return false;
     }
 }
