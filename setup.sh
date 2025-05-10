@@ -12,6 +12,7 @@ chmod a+rx $HOME/.local/bin/yt-dlp  # Make executable
 
 echo "Configuring VLC..."
 sed -i 's/geteuid/getppid/' /usr/bin/vlc #https://unix.stackexchange.com/questions/125546/how-to-run-vlc-player-in-root
+wget https://raw.githubusercontent.com/Shadorc/RPiTube/master/html/mobile.html -O /usr/share/vlc/lua/http/mobile.html
 
 echo "Downloading scripts..."
 DIR=$PWD
