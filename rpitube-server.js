@@ -7,7 +7,7 @@ app.get('/cast/:ip/:url', function (req, res) {
     const url = req.params.url;
 
     console.log(`Downloading video ${url}...`);
-    execSync(`youtube-dl ${url} -f mp4 -o video`);
+    execSync(`yt-dlp ${url} -f mp4 -o video`);
 
     console.log(`Casting video to ${ip}...`);
     execSync(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast`);
