@@ -1,23 +1,34 @@
-var exec = require('child_process').exec;
-var express = require('express');
-var app = express();
+const { execSync } = require('child_process');
+const express = require('express');
+const app = express();
 
 app.get('/cast/:ip/:url', function (req, res) {
     const ip = req.params.ip;
     const url = req.params.url;
 
     console.log(`Downloading video ${url}...`);
-    exec(`youtube-dl ${url} -f mp4 -o video`);
+    execSync(`youtube-dl ${url} -f mp4 -o video`);
 
     console.log(`Casting video to ${ip}...`);
-    exec(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast`);
+    execSync(`vlc video.mp4 -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast`);
 
     res.send(`Casting ${url} to Chromecast ${ip}`);
 });
 
 var srv = app.listen(3000, function () {
-    var host = srv.address().address;
+    var host = getLocalIP();
     var port = srv.address().port;
 
     console.log('Access at http://%s:%s', host, port);
 });
+
+function getLocalIP() {
+    try {
+        const output = execSync('hostname -I');
+        const ips = output.trim().split(/\s+/);
+        return ips[0] || 'unknown';
+    } catch (err) {
+        console.error('Error getting local IP:', err);
+        return 'unknown';
+    }
+}
