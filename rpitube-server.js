@@ -20,7 +20,7 @@ app.get('/cast/:ip/:url', function (req, res) {
 
     console.time('Downloading video');
     console.log(`Downloading video ${url}...`);
-    if (!execSyncSafe(`yt-dlp '${url}' -f mp4 -o '${filepath}'`)) {
+    if (!execSyncSafe(`yt-dlp '${url}' -f 'bestvideo[height<=1080]+bestaudio/best[height<=1080]' --merge-output-format mp4 -o '${filepath}'`)) {
         console.log("Downloading video failed.");
         return;
     }
