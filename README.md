@@ -6,7 +6,9 @@ ____________ _ _____     _
 | |\ \| |   | | | | |_| | |_) |  __/
 \_| \_\_|   |_| \_/\__,_|_.__/ \___|  
 ```
-I was curious whether it was possible to replicate Chromecast functionality without relying on the official API. This small project demonstrates how to launch a YouTube video from a smartphone to a Chromecast using a Raspberry Pi.
+I was curious to see if it was possible to replicate Chromecast functionality without relying on the official API. This small project demonstrates how to launch a YouTube video from a smartphone to a Chromecast using a Raspberry Pi. It’s more of a proof of concept than a practical solution, mainly due to the delay it introduces before the video starts casting.
+
+I tested it on my desktop using WSL, where it took about 1 minute to load a 1h15min video (1006 MB), a significant improvement over the 3 minutes it took to load a 12-minute video on my Raspberry Pi 3. If I ever get my hands on a cheap Raspberry Pi 5, it might just be fast enough to make this approach viable.
 
 ## Requirements
 - Raspberry Pi 3 or above
@@ -45,12 +47,14 @@ I was curious whether it was possible to replicate Chromecast functionality with
 Leave the username field blank and enter the password (`rpitube` if you didn't defined one using `--vlc-password`).
 The HTML has been slightly modified to remove all the buttons that do not work with the Chromecast.
 
-## Improving speed
+## Limitations
 
 Two main factors influence the delay between the moment a video is requested and when it starts casting:
 
 - **Internet Bandwidth**  
-  Generally, using an Ethernet cable is more reliable and faster than Wi-Fi. Additionally, some Raspberry Pi models, like the Raspberry Pi 3 that I'm using, only support 2.4GHz Wi-Fi and not 5GHz, which can introduce further delays.
+  Network capabilities greatly depend on the model of the Raspberry Pi used. Models like the Pi 3B only support 2.4GHz, typically capped around 10–20 MB/s. Starting with the Raspberry Pi 3B+, 5GHz Wi-Fi support was introduced, offering theoretical speeds up to 55 MB/s.
+
+  On the Ethernet side, the Pi 3B+ features "Gigabit Ethernet over USB 2.0," limiting actual throughput to around 37MB/s. The Raspberry Pi 4 and Pi 5 come with true Gigabit Ethernet, reaching up to 110MB/s in real-world conditions.
 
 - **Storage Bandwidth**  
   By default, Raspberry Pi devices use Micro SD cards for storage. Their performance varies significantly depending on quality, typically ranging from 5 MB/s to 20 MB/s. However, due to bus limitations, speeds generally can't exceed this range. For better performance, it's possible to use a USB drive or an SSD (though SSDs are more expensive).  
@@ -62,4 +66,4 @@ Two main factors influence the delay between the moment a video is requested and
 
 ## ToDo
 - Add possibility to start a new video when another is still playing
-- (?) Improve HTTP response to indicate the progress
+- Improve HTTP responses
