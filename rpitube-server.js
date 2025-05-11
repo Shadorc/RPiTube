@@ -45,10 +45,7 @@ app.get('/cast/:ip/:url', function (req, res) {
         return;
     }
 
-    console.log('Cast stopped, deleting video...');
-    fs.unlinkSync(video_filepath);
-
-    console.log('Done!');
+    console.log('Cast stopped!');
 });
 
 var srv = app.listen(3000, function () {
