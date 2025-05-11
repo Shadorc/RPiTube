@@ -20,4 +20,4 @@ GIT_URL="https://raw.githubusercontent.com/Shadorc/RPiTube/master"
 wget -O $DIR/rpitube-server.js $GIT_URL/rpitube-server.js
 wget -O $DIR/start-server.sh $GIT_URL/start-server.sh
 
-sh start-server.sh
+echo "Done!"
