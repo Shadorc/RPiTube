@@ -17,7 +17,7 @@ app.get('/cast/:ip/:url', function (req, res) {
 
     console.log('Managing cache...');
     manageCache(videos_dir);
-    
+
     // Delete previous file if it exist to avoid appending the filename
     if (fs.existsSync(video_filepath_file)) {
         fs.unlinkSync(video_filepath_file);
@@ -99,6 +99,10 @@ function execSyncSafe(cmd) {
 
 function manageCache(dirPath, maxFiles = 5) {
     try {
+        if (!fs.existsSync(dirPath)) {
+            return;
+        }
+
         const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
         const files = entries
