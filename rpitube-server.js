@@ -25,7 +25,7 @@ app.get('/cast/:ip/:url', function (req, res) {
 
     var video_filepath;
     try {
-        video_filepath = fs.readFileSync(video_filepath_file, 'utf-8');
+        video_filepath = fs.readFileSync(video_filepath_file, 'utf-8').trim();
     } catch (err) {
         console.error(`Error reading file ${video_filepath_file}:`, err);
         return;
