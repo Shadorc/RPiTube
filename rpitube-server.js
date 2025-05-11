@@ -52,6 +52,15 @@ var srv = app.listen(3000, function () {
     var host = getLocalIP();
     var port = srv.address().port;
 
+    console.log(`
+____________ _ _____     _          
+| ___ \ ___ (_)_   _|   | |         
+| |_/ / |_/ /_  | |_   _| |__   ___ 
+|    /|  __/| | | | | | | '_ \ / _ \
+| |\ \| |   | | | | |_| | |_) |  __/
+\_| \_\_|   |_| \_/\__,_|_.__/ \___|                                    
+`);
+
     console.log('API URL: http://%s:%s/cast/:chromecast-ip/:video-url', host, port);
     console.log('VLC interface: http://%s:8080', host);
 });
