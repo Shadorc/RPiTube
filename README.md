@@ -18,6 +18,8 @@
 2. `sudo sh setup.sh`
 
 ## Usage
+Start the server using `sudo sh start-server.sh [--vlc-password <password>]`
+
 - In browser: 
     - Encode the YouTube URL you want to use using https://www.urlencoder.orgv
     - Connect to `http://<RPI_IP>:3000/cast/<CHROMECAST_IP>/<ENCODED_URL>`
@@ -29,7 +31,7 @@
     5. From the YouTube app, share a video to `RPiTube Cast`
 
 When the video is playing, you can control it using VLC's Web interface available at `http://<RPI_IP>:8080`.  
-Leave the username field blank and enter the `rpitube` as password.
+Leave the username field blank and enter the password (`rpitube` if you didn't defined one using `--vlc-password`).
 
 ## Improving speed
 
@@ -48,5 +50,4 @@ Two main factors influence the delay between the moment a video is requested and
 
 ## ToDo
 - Add possibility to start a new video when another is still playing
-- Being able to change VLC password
 - (?) Improve HTTP response to indicate the progress

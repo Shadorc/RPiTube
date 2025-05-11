@@ -3,6 +3,9 @@ const fs = require('fs');
 const express = require('express');
 const app = express();
 
+const options = parseArgs();
+const vlc_password = options['vlc-password'] || 'rpitube';
+
 const video_filepath_file = 'video_filepath.txt' // Text file containing the path of the last doawnloaded video
 const videos_dir = 'videos';
 if (!fs.existsSync(videos_dir)) {
@@ -40,7 +43,7 @@ app.get('/cast/:ip/:url', function (req, res) {
     }
 
     console.log(`Casting video to ${ip}...`);
-    if (!spawnSyncSafe('vlc', [video_filepath, '-I', 'http', '--http-password', 'rpitube', '--sout', '#chromecast', '--sout-chromecast-ip=${ip}', '--demux-filter=demux_chromecast', '--play-and-exit'])) {
+    if (!spawnSyncSafe('vlc', [video_filepath, '-I', 'http', '--http-password', vlc_password, '--sout', '#chromecast', '--sout-chromecast-ip=${ip}', '--demux-filter=demux_chromecast', '--play-and-exit'])) {
         console.log("Casting video failed.");
         return;
     }
@@ -64,6 +67,17 @@ ____________ _ _____     _
     console.log('API URL: http://%s:%s/cast/:chromecast-ip/:video-url', host, port);
     console.log('VLC interface: http://%s:8080', host);
 });
+
+function parseArgs() {
+    const options = {};
+    const args = process.argv.slice(2); // First arg is path to node and second is path to script
+    for (let i = 0; i < args.length; i += 2) {
+        const key = args[i].replace(/^--/, '');
+        const value = args[i + 1];
+        options[key] = value;
+    }
+    return options;
+}
 
 function getLocalIP() {
     try {
