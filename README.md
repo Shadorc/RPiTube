@@ -30,8 +30,22 @@
 When the video is playing, you can control it using VLC's Web interface available at `http://<RPI_IP>:8080`.  
 Leave the username field blank and enter the `rpitube` as password.
 
+## Improving speed
+
+Two main factors influence the delay between the moment a video is requested and when it starts casting:
+
+- **Internet Bandwidth**  
+  Generally, using an Ethernet cable is more reliable and faster than Wi-Fi. Additionally, some Raspberry Pi models, like the Raspberry Pi 3 that I'm using, only support 2.4GHz Wi-Fi and not 5GHz, which can introduce further delays. That said, internet bandwidth is typically not the primary bottleneck on a standard Raspberry Pi.
+
+- **Storage Bandwidth**  
+  By default, Raspberry Pi devices use Micro SD cards for storage. Their performance varies significantly depending on quality, typically ranging from 5 MB/s to 20 MB/s. However, due to bus limitations, speeds generally can't exceed this range. For better performance, it's possible to use a USB drive or an SSD (though SSDs are more expensive).  
+  To benchmark storage speed, you can run:  
+  ```bash
+  dd if=/dev/zero of=./largefile bs=8k count=100000
+  ```
+  In my case, I measured average write speeds of 24 MB/s on one USB drive, 8.5 MB/s on another, and 12 MB/s on the default Micro SD card.
+
 ## ToDo
-- Investigate how to improve speed (better SD Card, SSD, USB...)
 - Investigate low video quality issue
 - Use video name for the filename
 - Add possibility to start a new video when another is still playing
