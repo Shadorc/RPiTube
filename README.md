@@ -27,14 +27,14 @@
     4. Open HTTP Request Shortcut settings and import 
     5. From the YouTube app, share a video to `RPiTube Cast`
 
-When the video is playing, you can control it using VLC's Web interface available at `http://<RPI_IP>:8080`.
+When the video is playing, you can control it using VLC's Web interface available at `http://<RPI_IP>:8080`.  
 Leave the username field blank and enter the `rpitube` as password.
 
 ## ToDo
+- Investigate how to improve speed (better SD Card, SSD, USB...)
+- Investigate low video quality issue
 - Use video name for the filename
+- Add possibility to start a new video when another is still playing
+- Being able to change VLC password
 - Add a cache for videos to be able to replay a vido without downloading it again
 - (?) Improve HTTP response to indicate the progress
-- Investigate low video quality issue
-- Add possibility to start a new video when another is still playing
-- Investigate how to improve speed (SSD?)
-- Being able to change VLC password
