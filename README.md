@@ -43,6 +43,7 @@ I was curious whether it was possible to replicate Chromecast functionality with
 
 3/ Control video using VLC's Web interface available at `http://<RPI_IP>:8080`. 
 Leave the username field blank and enter the password (`rpitube` if you didn't defined one using `--vlc-password`).
+The HTML has been slightly modified to remove all the buttons that do not work with the Chromecast.
 
 ## Improving speed
 
