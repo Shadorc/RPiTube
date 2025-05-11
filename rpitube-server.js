@@ -29,7 +29,7 @@ app.get('/cast/:ip/:url', function (req, res) {
 
     console.time('Downloading video');
     console.log(`Downloading video ${url}...`);
-    if (!spawnSyncSafe('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${videos_dir}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath'], video_filepath_file)) {
+    if (!spawnSyncSafe('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${videos_dir}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', video_filepath_file])) {
         console.log("Downloading video failed.");
         return;
     }
