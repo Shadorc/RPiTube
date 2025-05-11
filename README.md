@@ -47,7 +47,6 @@ Two main factors influence the delay between the moment a video is requested and
   In my case, I measured average write speeds of 24 MB/s on one USB drive, 8.5 MB/s on another, and 12 MB/s on the default Micro SD card.
 
 ## ToDo
-- Investigate low video quality issue
 - Add possibility to start a new video when another is still playing
 - Being able to change VLC password
 - Add a cache for videos to be able to replay a vido without downloading it again
