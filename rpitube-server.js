@@ -1,39 +1,44 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
-const { randomUUID } = require('crypto');
 const express = require('express');
 const app = express();
 
-const video_dir = "videos";
-if (!fs.existsSync(video_dir)) {
-  fs.mkdirSync(video_dir);
+const video_filepath_file = 'video_filepath.txt' // Text file containing the path of the last doawnloaded video
+const videos_dir = 'videos';
+if (!fs.existsSync(videos_dir)) {
+    fs.mkdirSync(videos_dir);
 }
 
 app.get('/cast/:ip/:url', function (req, res) {
     const ip = req.params.ip;
     const url = req.params.url;
 
-    const id = randomUUID();
-    const filepath = `${video_dir}/video-${id}.mp4`;
-
     res.send(`Casting ${url} to Chromecast ${ip}`);
 
     console.time('Downloading video');
     console.log(`Downloading video ${url}...`);
-    if (!execSyncSafe(`yt-dlp '${url}' -f 'bestvideo[height<=1080]+bestaudio/best[height<=1080]' --merge-output-format mp4 -o '${filepath}'`)) {
+    if (!execSyncSafe(`yt-dlp '${url}' -f 'bestvideo[height<=1080]+bestaudio/best[height<=1080]' -o '${videos_dir}/%(title)s.%(ext)s' --print-to-file after_move:filepath '${video_filepath_file}`)) {
         console.log("Downloading video failed.");
         return;
     }
     console.timeEnd('Downloading video');
 
+    var video_filepath;
+    try {
+        video_filepath = fs.readFileSync(video_filepath_file, 'utf-8');
+    } catch (err) {
+        console.error(`Error reading file ${video_filepath_file}:`, err);
+        return;
+    }
+
     console.log(`Casting video to ${ip}...`);
-    if (!execSyncSafe(`vlc '${filepath}' -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast --play-and-exit`)) {
+    if (!execSyncSafe(`vlc '${video_filepath}' -I http --http-password 'rpitube' --sout '#chromecast' --sout-chromecast-ip=${ip} --demux-filter=demux_chromecast --play-and-exit`)) {
         console.log("Casting video failed.");
         return;
     }
 
     console.log('Video stopped, deleting...');
-    fs.unlinkSync(filepath);
+    fs.unlinkSync(video_filepath);
 
     console.log('Done');
 });

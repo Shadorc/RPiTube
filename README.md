@@ -48,7 +48,6 @@ Two main factors influence the delay between the moment a video is requested and
 
 ## ToDo
 - Investigate low video quality issue
-- Use video name for the filename
 - Add possibility to start a new video when another is still playing
 - Being able to change VLC password
 - Add a cache for videos to be able to replay a vido without downloading it again
