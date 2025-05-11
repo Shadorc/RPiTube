@@ -11,6 +11,7 @@
         - System Options > Wireless LAN
         - Localisation Options > WLAN Country
 - `sudo apt-get update -y && sudo apt-get upgrade -y`
+- [Optional] [Set a static IP address](https://www.tomshardware.com/how-to/static-ip-raspberry-pi) to ensure the Raspberry Pi always uses the same IP after reboot, making it easier to connect
 
 ## Setup RPiTube
 1. `wget https://raw.githubusercontent.com/Shadorc/RPiTube/master/setup.sh`
