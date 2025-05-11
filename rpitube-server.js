@@ -44,7 +44,7 @@ app.get('/cast/:ip/:url', function (req, res) {
     }
 
     console.log(`Casting video to ${ip}...`);
-    if (!spawnSyncSafe('vlc', [video_filepath, '-I', 'http', '--http-password', vlc_password, '--sout', '#chromecast', '--sout-chromecast-ip=${ip}', '--demux-filter=demux_chromecast', '--play-and-exit'])) {
+    if (!spawnSyncSafe('vlc', [video_filepath, '-I', 'http', '--http-password', vlc_password, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'])) {
         console.log("Casting video failed.");
         return;
     }
