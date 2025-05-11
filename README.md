@@ -1,3 +1,13 @@
+```text
+____________ _ _____     _          
+| ___ \ ___ (_)_   _|   | |         
+| |_/ / |_/ /_  | |_   _| |__   ___ 
+|    /|  __/| | | | | | | '_ \ / _ \
+| |\ \| |   | | | | |_| | |_) |  __/
+\_| \_\_|   |_| \_/\__,_|_.__/ \___|  
+```
+I was curious whether it was possible to replicate Chromecast functionality without relying on the official API. This small project demonstrates how to launch a YouTube video from a smartphone to a Chromecast using a Raspberry Pi.
+
 ## Requirements
 - Raspberry Pi 3 or above
 - [Raspberry Pi OS Lite 64 bits](https://www.raspberrypi.com/software/operating-systems/#raspberry-pi-os-64-bit)
@@ -18,19 +28,20 @@
 2. `sudo sh setup.sh`
 
 ## Usage
-Start the server using `sudo sh start-server.sh [--vlc-password <password>]`
+1/ Start the server using `sudo sh start-server.sh [--vlc-password <password>]`  
+2/ Cast a YouTube video:
+- From browser: 
+  1. Encode the YouTube URL you want to use using https://www.urlencoder.orgv
+  2. Connect to `http://<RPI_IP>:3000/cast/<CHROMECAST_IP>/<ENCODED_URL>`  
+  
+- From Android:
+  1. Download `http_shortcut_rpitube.json`
+  2. Edit line 21 to set both `<RPI_IP>` and `<CHROMECAST_IP>`
+  3. Upload the file on your phone
+  4. Open HTTP Request Shortcut settings and import 
+  5. From the YouTube app, share a video to `RPiTube Cast`
 
-- In browser: 
-    - Encode the YouTube URL you want to use using https://www.urlencoder.orgv
-    - Connect to `http://<RPI_IP>:3000/cast/<CHROMECAST_IP>/<ENCODED_URL>`
-- In HTTP Request Shortcut:
-    1. Download `http_shortcut_rpitube.json`
-    2. Edit line 21 to set both `<RPI_IP>` and `<CHROMECAST_IP>`
-    3. Upload the file on your phone
-    4. Open HTTP Request Shortcut settings and import 
-    5. From the YouTube app, share a video to `RPiTube Cast`
-
-When the video is playing, you can control it using VLC's Web interface available at `http://<RPI_IP>:8080`.  
+3/ Control video using VLC's Web interface available at `http://<RPI_IP>:8080`. 
 Leave the username field blank and enter the password (`rpitube` if you didn't defined one using `--vlc-password`).
 
 ## Improving speed
