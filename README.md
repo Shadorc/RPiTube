@@ -31,7 +31,7 @@ I was curious whether it was possible to replicate Chromecast functionality with
 1/ Start the server using `sudo sh start-server.sh [--vlc-password <password>]`  
 2/ Cast a YouTube video:
 - From browser: 
-  1. Encode the YouTube URL you want to use using https://www.urlencoder.orgv
+  1. Encode the YouTube URL you want to use using https://www.urlencoder.org
   2. Connect to `http://<RPI_IP>:3000/cast/<CHROMECAST_IP>/<ENCODED_URL>`  
   
 - From Android:
@@ -50,7 +50,7 @@ The HTML has been slightly modified to remove all the buttons that do not work w
 Two main factors influence the delay between the moment a video is requested and when it starts casting:
 
 - **Internet Bandwidth**  
-  Generally, using an Ethernet cable is more reliable and faster than Wi-Fi. Additionally, some Raspberry Pi models, like the Raspberry Pi 3 that I'm using, only support 2.4GHz Wi-Fi and not 5GHz, which can introduce further delays. That said, internet bandwidth is typically not the primary bottleneck on a standard Raspberry Pi.
+  Generally, using an Ethernet cable is more reliable and faster than Wi-Fi. Additionally, some Raspberry Pi models, like the Raspberry Pi 3 that I'm using, only support 2.4GHz Wi-Fi and not 5GHz, which can introduce further delays.
 
 - **Storage Bandwidth**  
   By default, Raspberry Pi devices use Micro SD cards for storage. Their performance varies significantly depending on quality, typically ranging from 5 MB/s to 20 MB/s. However, due to bus limitations, speeds generally can't exceed this range. For better performance, it's possible to use a USB drive or an SSD (though SSDs are more expensive).  
