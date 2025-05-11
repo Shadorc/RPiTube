@@ -15,6 +15,9 @@ app.get('/cast/:ip/:url', function (req, res) {
 
     res.send(`Casting ${url} to Chromecast ${ip}`);
 
+    console.log('Managing cache...');
+    manageCache(videos_dir);
+    
     // Delete previous file if it exist to avoid appending the filename
     if (fs.existsSync(video_filepath_file)) {
         fs.unlinkSync(video_filepath_file);
@@ -42,10 +45,10 @@ app.get('/cast/:ip/:url', function (req, res) {
         return;
     }
 
-    console.log('Video stopped, deleting...');
+    console.log('Cast stopped, deleting video...');
     fs.unlinkSync(video_filepath);
 
-    console.log('Done');
+    console.log('Done!');
 });
 
 var srv = app.listen(3000, function () {
@@ -91,5 +94,31 @@ function execSyncSafe(cmd) {
             console.error(`  stderr: ${error.stderr.toString()}`);
         }
         return false;
+    }
+}
+
+function manageCache(dirPath, maxFiles = 5) {
+    try {
+        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+
+        const files = entries
+            .filter(entry => entry.isFile())
+            .map(entry => {
+                const fullPath = path.join(dirPath, entry.name);
+                const stats = fs.statSync(fullPath);
+                return { path: fullPath, mtime: stats.mtime };
+            });
+
+        // Sort by modification time (most recent first)
+        files.sort((a, b) => b.mtime - a.mtime);
+
+        // Files to delete (after the first `maxFiles`)
+        const filesToDelete = files.slice(maxFiles);
+
+        for (const file of filesToDelete) {
+            fs.unlinkSync(file.path);
+        }
+    } catch (err) {
+        console.error('Error managing cache:', err);
     }
 }
