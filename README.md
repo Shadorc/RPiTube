@@ -9,6 +9,7 @@ ____________ _ _____     _
 Web service for downloading YouTube videos and casting them to a Chromecast, controlled through the VLC web interface.
 
 ## Requirements
+- Debian based OS
 - Android App: [HTTP Request Shortcuts](https://play.google.com/store/apps/details?id=ch.rmy.android.http_shortcuts)
 - Chromecast's local IP address
     - You can usually find this on your router's admin page, often accessible at 192.168.1.1.
