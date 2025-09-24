@@ -26,7 +26,7 @@ Web service for downloading YouTube videos and casting them to a Chromecast, con
   2. Connect to `http://<WEBSERVICE_IP>:3000/cast/<CHROMECAST_IP>/<ENCODED_URL>`  
   
 - From Android:
-  1. Download `http_shortcut_rpitube.json`
+  1. Download `http_request_shortcuts/http_shortcut_rpitube.json`
   2. Edit line 21 to set both `<WEBSERVICE_IP>` and `<CHROMECAST_IP>`
   3. Upload the file on your phone
   4. Open HTTP Request Shortcut settings and import 
