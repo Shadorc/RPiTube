@@ -17,10 +17,10 @@ Web service for downloading YouTube videos and casting them to a Chromecast, con
 ## Setup RPiTube
 1. `wget https://raw.githubusercontent.com/Shadorc/RPiTube/master/setup.sh`
 2. `chmod +x setup.sh`
-3. `sudo sh setup.sh`
+3. `sudo ./setup.sh`
 
 ## Usage
-1/ Start the server using `sudo sh start-server.sh [--vlc-password <password>]`  
+1/ Start the server using `sudo ./start-server.sh [--vlc-password <password>]`  
 2/ Cast a YouTube video:
 - From browser: 
   1. Encode the YouTube URL you want to use using https://www.urlencoder.org
