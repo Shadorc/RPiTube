@@ -15,6 +15,14 @@ err() {
     exit 1
 }
 
+check_command() {
+    command -v "$1" >/dev/null 2>&1 || err "Missing required command: $1. Run 'sudo apt install $1'"
+}
+
+# Check prerequisites
+check_command wget
+check_command sed
+
 log "Installing dependencies..."
 
 # Install VLC and node-express
@@ -22,7 +30,7 @@ apt-get install -y vlc node-express || err "Failed to install dependencies"
 
 # Install youtube-dl
 mkdir -p $HOME/.local/bin
-wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O $HOME/.local/bin/yt-dlp || err "Failed to download yt-dlp"
+wget -q --show-progress https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O $HOME/.local/bin/yt-dlp || err "Failed to download yt-dlp"
 chmod a+rx $HOME/.local/bin/yt-dlp  # Make executable
 
 log "Configuring VLC..."
@@ -33,11 +41,11 @@ else
     err "VLC not found at /usr/bin/vlc"
 fi
 
-wget $RPITUBE_GIT_URL/vlc_html/mobile.html -O /usr/share/vlc/lua/http/mobile.html || err "Failed to fetch VLC HTML file"
+wget -q --show-progress $RPITUBE_GIT_URL/vlc_html/mobile.html -O /usr/share/vlc/lua/http/mobile.html || err "Failed to fetch VLC HTML file"
 
 log "Downloading scripts..."
 DIR=$PWD
-wget -O $DIR/rpitube-server.js $RPITUBE_GIT_URL/rpitube-server.js || err "Failed to download rpitube-server.js"
-wget -O $DIR/start-server.sh $RPITUBE_GIT_URL/start-server.sh || err "Failed to download start-server.sh"
+wget -q --show-progress -O $DIR/rpitube-server.js $RPITUBE_GIT_URL/rpitube-server.js || err "Failed to download rpitube-server.js"
+wget -q --show-progress -O $DIR/start-server.sh $RPITUBE_GIT_URL/start-server.sh || err "Failed to download start-server.sh"
 
 log "Installation complete!"
