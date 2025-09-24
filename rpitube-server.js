@@ -2,20 +2,28 @@ const { execSync, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const net = require('net');
 const app = express();
 
 const options = parseArgs();
 const vlc_password = options['vlc-password'] || 'rpitube';
 
-const video_filepath_file = 'video_filepath.txt' // Text file containing the path of the last doawnloaded video
+const video_filepath_file = 'video_filepath.txt' // Text file containing the path of the last downloaded video
 const videos_dir = 'videos';
 if (!fs.existsSync(videos_dir)) {
     fs.mkdirSync(videos_dir);
 }
 
 app.get('/cast/:ip/:url', function (req, res) {
-    const ip = req.params.ip;
-    const url = req.params.url;
+    const { ip, url } = req.params;
+
+    if (net.isIP(ip) === 0) {
+        return res.status(400).json({ error: "Invalid IP address" });
+    }
+
+    if (!isValidURL(url)) {
+        return res.status(400).json({ error: "Invalid URL" });
+    }
 
     res.send(`Casting ${url} to Chromecast ${ip}`);
 
@@ -89,6 +97,16 @@ function getLocalIP() {
         console.error('Error getting local IP:', err);
         return 'unknown';
     }
+}
+
+function isValidURL(str) {
+  try {
+    const parsed = new URL(str);
+    // Allow only http(s) protocols for safety
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch (err) {
+    return false;
+  }
 }
 
 function spawnSyncSafe(cmd, args) {
