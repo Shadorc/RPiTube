@@ -18,10 +18,12 @@ app.get('/cast/:ip/:url', function (req, res) {
     const { ip, url } = req.params;
 
     if (net.isIP(ip) === 0) {
+        console.error(`[ERROR] Invalid IP: ${ip}`);
         return res.status(400).json({ error: "Invalid IP address" });
     }
 
     if (!isValidURL(url)) {
+        console.error(`[ERROR] Invalid URL: ${url}`);
         return res.status(400).json({ error: "Invalid URL" });
     }
 
@@ -38,8 +40,8 @@ app.get('/cast/:ip/:url', function (req, res) {
     console.time('Downloading video');
     console.log(`Downloading video ${url}...`);
     if (!spawnSyncSafe('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${videos_dir}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', video_filepath_file])) {
-        console.log("Downloading video failed.");
-        return;
+        console.error(`[ERROR] Downloading video failed`);
+        return res.status(500).json({ error: "Downloading video failed" });
     }
     console.timeEnd('Downloading video');
 
@@ -47,14 +49,14 @@ app.get('/cast/:ip/:url', function (req, res) {
     try {
         video_filepath = fs.readFileSync(video_filepath_file, 'utf-8').trim();
     } catch (err) {
-        console.error(`Error reading file ${video_filepath_file}:`, err);
-        return;
+        console.error(`[ERROR] Cannot read ${video_filepath_file}`, err);
+        return res.status(500).json({ error: `Error reading file ${video_filepath_file}` });
     }
 
     console.log(`Casting video to ${ip}...`);
     if (!spawnSyncSafe('vlc', [video_filepath, '-I', 'http', '--http-password', vlc_password, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'])) {
-        console.log("Casting video failed.");
-        return;
+        console.error(`[ERROR] Casting video failed`);
+        return res.status(500).json({ error: "Casting video failed" });
     }
 
     console.log('Cast stopped!');
@@ -100,13 +102,13 @@ function getLocalIP() {
 }
 
 function isValidURL(str) {
-  try {
-    const parsed = new URL(str);
-    // Allow only http(s) protocols for safety
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch (err) {
-    return false;
-  }
+    try {
+        const parsed = new URL(str);
+        // Allow only http(s) protocols for safety
+        return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch (err) {
+        return false;
+    }
 }
 
 function spawnSyncSafe(cmd, args) {
