@@ -16,7 +16,8 @@ Web service for downloading YouTube videos and casting them to a Chromecast, con
 
 ## Setup RPiTube
 1. `wget https://raw.githubusercontent.com/Shadorc/RPiTube/master/setup.sh`
-2. `sudo sh setup.sh`
+2. `chmod +x setup.sh`
+3. `sudo sh setup.sh`
 
 ## Usage
 1/ Start the server using `sudo sh start-server.sh [--vlc-password <password>]`  
