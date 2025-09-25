@@ -26,12 +26,12 @@ check_command sed
 log "Installing dependencies..."
 
 # Install VLC and node-express
-apt-get install -y vlc node-express || err "Failed to install dependencies"
+apt-get install -y vlc node-express python3 || err "Failed to install dependencies"
 
 # Install youtube-dl
 mkdir -p $HOME/.local/bin
-wget -q --show-progress https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O $HOME/.local/bin/yt-dlp || err "Failed to download yt-dlp"
-chmod a+rx $HOME/.local/bin/yt-dlp  # Make executable
+wget -q --show-progress https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp || err "Failed to download yt-dlp"
+chmod a+rx /usr/local/bin/yt-dlp  # Make executable
 
 log "Configuring VLC..."
 if [ -f /usr/bin/vlc ]; then
