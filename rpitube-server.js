@@ -113,10 +113,17 @@ function isValidURL(str) {
 
 function spawnSyncSafe(cmd, args) {
     try {
-        spawnSync(cmd, args, { stdio: 'inherit', encoding: 'utf-8' });
+        const result = spawnSync(cmd, args, { stdio: 'inherit', stderr: 'inherit', encoding: 'utf-8' });
+
+        if (result.error) {
+            console.error('[ERROR] Command failed:');
+            console.error(`  message: ${result.error}`);
+            return false;
+        }
+
         return true;
     } catch (error) {
-        console.error('Command failed:');
+        console.error('[ERROR] Command failed:');
         console.error(`  message: ${error.message}`);
         console.error(`  status: ${error.status}`);
         if (error.stdout) {
