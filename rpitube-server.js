@@ -27,9 +27,6 @@ app.get('/cast/:ip/:url', function (req, res) {
         return res.status(400).json({ error: "Invalid URL" });
     }
 
-    res.send(`Casting ${url} to Chromecast ${ip}`);
-
-    console.log('Managing cache...');
     manageCache(videos_dir);
 
     // Delete previous file if it exist to avoid appending the filename
@@ -49,17 +46,17 @@ app.get('/cast/:ip/:url', function (req, res) {
     try {
         video_filepath = fs.readFileSync(video_filepath_file, 'utf-8').trim();
     } catch (err) {
-        console.error(`[ERROR] Cannot read ${video_filepath_file}`, err);
+        console.error(`[ERROR] Cannot read ${video_filepath_file}\n`, err);
         return res.status(500).json({ error: `Error reading file ${video_filepath_file}` });
     }
 
-    console.log(`Casting video to ${ip}...`);
+    console.log(`Casting ${url} to ${ip}...`);
     if (!spawnSyncSafe('vlc', [video_filepath, '-I', 'http', '--http-password', vlc_password, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'])) {
         console.error(`[ERROR] Casting video failed`);
         return res.status(500).json({ error: "Casting video failed" });
     }
 
-    console.log('Cast stopped!');
+    return res.json({ success: true, message: `Cast stopped` });
 });
 
 var srv = app.listen(3000, function () {
