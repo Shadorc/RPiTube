@@ -22,10 +22,6 @@ def run(cmd: str, check: bool = True) -> subprocess.CompletedProcess:
     log(f"Running: {cmd}")
     return subprocess.run(cmd, shell=True, check=check)
 
-def require_command(cmd: str, install_hint: str) -> None:
-    if which(cmd) is None:
-        err(f"Missing required command: {cmd}. {install_hint}")
-
 def download_to(url: str, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     log(f"Downloading {url} -> {dest}")
@@ -40,17 +36,6 @@ def get_vlc_http_dir() -> Path:
     base = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
     vlc_http = base / "VideoLAN" / "VLC" / "lua" / "http"
     return vlc_http
-
-def install_with_choco(packages: list[str]) -> None:
-    pkgs = " ".join(packages)
-    run(f'choco install -y --limit-output {pkgs}')
-
-def npm_install(packages: list[str]) -> None:
-    npm = which("npm") or which("npm.cmd")
-    if not npm:
-        err("npm not found after Node.js installation. Make sure your shell has a refreshed PATH or restart the terminal.")
-    pkgs = " ".join(packages)
-    run(f'"{npm}" install {pkgs}')
 
 def copy_mobile_html_to_vlc(http_file: Path) -> bool:
     vlc_http_dir = get_vlc_http_dir()
@@ -68,27 +53,26 @@ def copy_mobile_html_to_vlc(http_file: Path) -> bool:
         return False
 
 def main():
-    require_command("choco", "Install Chocolatey: https://chocolatey.org/install and re-run as Administrator.")
+    if which("choco") is None:
+        err(f"Missing required command: choco. Install Chocolatey: https://chocolatey.org/install and re-run as Administrator.")
 
     cwd = Path.cwd()
     rpitube_server = cwd / "rpitube-server.js"
-    start_server_sh = cwd / "start-server.sh"
+    start_server_py = cwd / "start-server.py"
     mobile_html_local = cwd / "mobile.html"
 
     log("Installing dependencies with Chocolatey...")
-    install_with_choco([
-        "vlc",
-        "nodejs",
-        "ffmpeg",
-        "yt-dlp"
-    ])
+    run(f'choco install -y --limit-output vlc nodejs ffmpeg yt-dlp')
 
     log("Installing Express (npm) globally...")
-    npm_install(["express"])
+    npm = which("npm") or which("npm.cmd")
+    if not npm:
+        err("npm not found after Node.js installation. Make sure your shell has a refreshed PATH or restart the terminal.")
+    run(f'"{npm}" install express')
 
     log("Downloading scripts into current directory...")
     download_to(f"{RPITUBE_GIT_URL}/rpitube-server.js", rpitube_server)
-    download_to(f"{RPITUBE_GIT_URL}/start-server.sh", start_server_sh)
+    download_to(f"{RPITUBE_GIT_URL}/start-server.py", start_server_py)
 
     log("Fetching VLC HTML (mobile.html)...")
     download_to(f"{RPITUBE_GIT_URL}/vlc_html/mobile.html", mobile_html_local)
