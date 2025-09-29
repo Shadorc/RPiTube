@@ -1,9 +1,10 @@
-const { execSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const net = require('net');
 const app = express();
+const os = require('os');
 
 const options = parseArgs();
 const vlc_password = options['vlc-password'] || 'rpitube';
@@ -88,14 +89,18 @@ function parseArgs() {
 }
 
 function getLocalIP() {
-    try {
-        const output = execSync('hostname -I', { encoding: 'utf8' });
-        const ips = output.trim().split(/\s+/);
-        return ips[0] || 'unknown';
-    } catch (err) {
-        console.error('Error getting local IP:', err);
-        return 'unknown';
+    const interfaces = os.networkInterfaces();
+
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Skip internal (loopback) and non-IPv4
+            if (!iface.internal && iface.family === 'IPv4') {
+                return iface.address;
+            }
+        }
     }
+
+    return 'unknown';
 }
 
 function isValidURL(str) {
