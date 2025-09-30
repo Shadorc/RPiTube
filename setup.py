@@ -64,7 +64,7 @@ def main():
     log("Installing dependencies with Chocolatey...")
     run(f'choco install -y --limit-output vlc nodejs ffmpeg yt-dlp')
 
-    log("Installing Express (npm) globally...")
+    log("Installing Express (npm)...")
     npm = which("npm") or which("npm.cmd")
     if not npm:
         err("npm not found after Node.js installation. Make sure your shell has a refreshed PATH or restart the terminal.")
@@ -87,7 +87,7 @@ def main():
             rf"  {get_vlc_http_dir()}\mobile.html"
         )
 
-    log("Installation complete!")
+    log("Installation complete! You can execute 'py start-server.py'")
 
 if __name__ == "__main__":
     try:
