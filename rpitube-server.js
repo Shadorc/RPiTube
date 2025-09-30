@@ -52,7 +52,7 @@ app.get('/cast/:ip/:url', function (req, res) {
     }
 
     console.log(`Casting ${url} to ${ip}...`);
-    if (!spawnSyncSafe('vlc', [video_filepath, '-I', 'http', '--http-password', vlc_password, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'])) {
+    if (!spawnSyncSafe(getVlcExePath(), [video_filepath, '-I', 'http', '--http-password', vlc_password, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'])) {
         console.error(`[ERROR] Casting video failed`);
         return res.status(500).json({ error: "Casting video failed" });
     }
@@ -111,6 +111,13 @@ function isValidURL(str) {
     } catch (err) {
         return false;
     }
+}
+
+function getVlcExePath() {
+    // Default install path for VLC on Windows
+    const base = process.env["ProgramFiles"] || "C:\\Program Files";
+    const vlcHttp = path.join(base, "VideoLAN", "VLC", "vlc.exe");
+    return vlcHttp;
 }
 
 function spawnSyncSafe(cmd, args) {
