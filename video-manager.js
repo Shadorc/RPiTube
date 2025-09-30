@@ -39,9 +39,8 @@ class VideoManager {
 
     getVlcExePath() {
         // Default install path for VLC on Windows
-        const base = process.env["ProgramFiles"] || "C:\\Program Files";
-        const vlcHttp = path.join(base, "VideoLAN", "VLC", "vlc.exe");
-        return vlcHttp;
+        const rootPath = process.env["ProgramFiles"] || "C:\\Program Files";
+        return path.join(rootPath, "VideoLAN", "VLC", "vlc.exe");
     }
 
     play(ip, url) {
@@ -53,7 +52,7 @@ class VideoManager {
         console.log(`Downloading video ${url}...`);
         if (!this.spawnSyncSafe('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${this.cacheFolder}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE])) {
             console.error(`[ERROR] Downloading video failed`);
-            return res.status(500).json({ error: "Downloading video failed" });
+            throw new PlayError("Downloading video failed", 500);
         }
         console.timeEnd('Downloading video');
 
