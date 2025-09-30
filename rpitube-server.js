@@ -14,7 +14,6 @@ const videoManager = new VideoManager(vlcPassword, cacheFolder);
 
 process.on("SIGINT", () => {
     videoManager.stop();
-    videoManager.cleanup();
     process.exit(130);
 });
 
@@ -51,19 +50,13 @@ ____________ _ _____     _
             return res.status(400).json({ error: "Invalid URL" });
         }
 
-        if (videoManager.isPlaying) {
-            videoManager.stop();
-        }
-
         manageCache(cacheFolder);
 
         return videoManager.play(ip, url)
             .then(() => {
-                videoManager.cleanup();
                 return res.json({ success: true, message: `Cast stopped` });
             })
             .catch((err) => {
-                videoManager.cleanup();
                 return res.status(err.code).json({ error: err.message });
             });
     });
