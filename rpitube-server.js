@@ -1,19 +1,15 @@
-const { spawnSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const net = require('net');
 const app = express();
 const os = require('os');
+const path = require('path');
+const VideoManager = require('./video-manager')
 
 const options = parseArgs();
-const vlc_password = options['vlc-password'] || 'rpitube';
-
-const video_filepath_file = 'video_filepath.txt' // Text file containing the path of the last downloaded video
-const videos_dir = 'videos';
-if (!fs.existsSync(videos_dir)) {
-    fs.mkdirSync(videos_dir);
-}
+const vlcPassword = options['vlc-password'] || 'rpitube';
+const cacheFolder = options['cache-folder'] || 'videos';
+const videoManager = new VideoManager(vlcPassword, cacheFolder);
 
 app.get('/cast/:ip/:url', function (req, res) {
     const { ip, url } = req.params;
@@ -28,36 +24,12 @@ app.get('/cast/:ip/:url', function (req, res) {
         return res.status(400).json({ error: "Invalid URL" });
     }
 
-    manageCache(videos_dir);
+    manageCache(cacheFolder);
+    
+    var response = videoManager.play(res, ip, url);
+    videoManager.cleanup();
 
-    // Delete previous file if it exist to avoid appending the filename
-    if (fs.existsSync(video_filepath_file)) {
-        fs.unlinkSync(video_filepath_file);
-    }
-
-    console.time('Downloading video');
-    console.log(`Downloading video ${url}...`);
-    if (!spawnSyncSafe('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${videos_dir}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', video_filepath_file])) {
-        console.error(`[ERROR] Downloading video failed`);
-        return res.status(500).json({ error: "Downloading video failed" });
-    }
-    console.timeEnd('Downloading video');
-
-    var video_filepath;
-    try {
-        video_filepath = fs.readFileSync(video_filepath_file, 'utf-8').trim();
-    } catch (err) {
-        console.error(`[ERROR] Cannot read ${video_filepath_file}\n`, err);
-        return res.status(500).json({ error: `Error reading file ${video_filepath_file}` });
-    }
-
-    console.log(`Casting ${url} to ${ip}...`);
-    if (!spawnSyncSafe(getVlcExePath(), [video_filepath, '-I', 'http', '--http-password', vlc_password, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'])) {
-        console.error(`[ERROR] Casting video failed`);
-        return res.status(500).json({ error: "Casting video failed" });
-    }
-
-    return res.json({ success: true, message: `Cast stopped` });
+    return response;
 });
 
 var srv = app.listen(3000, function () {
@@ -75,6 +47,7 @@ ____________ _ _____     _
 
     console.log('API URL: http://%s:%s/cast/:chromecast-ip/:video-url', host, port);
     console.log('VLC interface: http://%s:8080', host);
+    console.log('-------------------------------------------------------------------');
 });
 
 function parseArgs() {
@@ -109,38 +82,6 @@ function isValidURL(str) {
         // Allow only http(s) protocols for safety
         return parsed.protocol === "http:" || parsed.protocol === "https:";
     } catch (err) {
-        return false;
-    }
-}
-
-function getVlcExePath() {
-    // Default install path for VLC on Windows
-    const base = process.env["ProgramFiles"] || "C:\\Program Files";
-    const vlcHttp = path.join(base, "VideoLAN", "VLC", "vlc.exe");
-    return vlcHttp;
-}
-
-function spawnSyncSafe(cmd, args) {
-    try {
-        const result = spawnSync(cmd, args, { stdio: 'inherit', stderr: 'inherit', encoding: 'utf-8' });
-
-        if (result.error) {
-            console.error('[ERROR] Command failed:');
-            console.error(`  message: ${result.error}`);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('[ERROR] Command failed:');
-        console.error(`  message: ${error.message}`);
-        console.error(`  status: ${error.status}`);
-        if (error.stdout) {
-            console.error(`  stdout: ${error.stdout.toString()}`);
-        }
-        if (error.stderr) {
-            console.error(`  stderr: ${error.stderr.toString()}`);
-        }
         return false;
     }
 }
