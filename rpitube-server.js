@@ -4,6 +4,7 @@ const net = require('net');
 const app = express();
 const os = require('os');
 const path = require('path');
+
 const VideoManager = require('./video-manager')
 
 const options = parseArgs();
@@ -25,11 +26,16 @@ app.get('/cast/:ip/:url', function (req, res) {
     }
 
     manageCache(cacheFolder);
-    
-    var response = videoManager.play(res, ip, url);
-    videoManager.cleanup();
 
-    return response;
+    try {
+        videoManager.play(ip, url);
+    } catch (err) {
+        return res.status(err.code).json({ error: err.message });
+    } finally {
+        videoManager.cleanup();
+    }
+
+    return res.json({ success: true, message: `Cast stopped` });
 });
 
 var srv = app.listen(3000, function () {

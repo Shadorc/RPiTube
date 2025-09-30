@@ -2,6 +2,8 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
+const PlayError = require('./play-error');
+
 const VIDEO_FILEPATH_FILE = 'video_filepath.txt' // Text file containing the path of the last downloaded video
 
 class VideoManager {
@@ -42,7 +44,7 @@ class VideoManager {
         return vlcHttp;
     }
 
-    play(res, ip, url) {
+    play(ip, url) {
         if (!fs.existsSync(this.cacheFolder)) {
             fs.mkdirSync(this.cacheFolder);
         }
@@ -60,16 +62,14 @@ class VideoManager {
             videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
         } catch (err) {
             console.error(`[ERROR] Cannot read ${VIDEO_FILEPATH_FILE}\n`, err);
-            return res.status(500).json({ error: `Error reading file ${VIDEO_FILEPATH_FILE}` });
+            throw new PlayError(`Error reading file ${VIDEO_FILEPATH_FILE}`, 500);
         }
 
         console.log(`Casting ${url} to ${ip}...`);
         if (!this.spawnSyncSafe(this.getVlcExePath(), [videoFilepath, '-I', 'http', '--http-password', this.vlcPassword, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'])) {
             console.error(`[ERROR] Casting video failed`);
-            return res.status(500).json({ error: "Casting video failed" });
+            throw new PlayError("Casting video failed", 500);
         }
-
-        return res.json({ success: true, message: `Cast stopped` });
     }
 
     cleanup() {
