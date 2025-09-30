@@ -54,7 +54,7 @@ ____________ _ _____     _
 
         return videoManager.play(ip, url)
             .then(() => {
-                return res.json({ success: true, message: `Cast stopped` });
+                return res.json({ message: `Cast stopped` });
             })
             .catch((err) => {
                 return res.status(err.code).json({ error: err.message });

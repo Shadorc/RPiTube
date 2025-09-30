@@ -44,77 +44,74 @@ class VideoManager {
         return path.join(rootPath, "VideoLAN", "VLC", "vlc.exe");
     }
 
-    play(ip, url) {
-        return new Promise(async (resolve, reject) => {
-            if (this.state === State.DOWNLOADING || this.state === State.CASTING) {
-                return this.stop();
-            }
+    async play(ip, url) {
+        if (this.state === State.DOWNLOADING || this.state === State.CASTING) {
+            await this.stop();
+        }
 
-            this.state = State.DOWNLOADING;
+        this.state = State.DOWNLOADING;
 
-            if (!fs.existsSync(this.cacheFolder)) {
-                fs.mkdirSync(this.cacheFolder);
-            }
+        if (!fs.existsSync(this.cacheFolder)) {
+            fs.mkdirSync(this.cacheFolder);
+        }
 
-            console.log(`Downloading ${url}...`);
-            const startTime = Date.now();
+        console.log(`Downloading ${url}...`);
+        const startTime = Date.now();
 
-            this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
+        this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
 
-            this.downloadProcess.on('error', async (err) => {
-                this.state = State.ERROR;
-                console.error(`[ERROR] Downloading failed\n`, err);
-                await this.stop();
-                reject(new PlayError(500, `Downloading failed: ${err.message}`));
-            });
+        try {
+            await this.waitForClose(this.downloadProcess);
+        } catch (err) {
+            this.state = State.ERROR;
+            console.error(`[ERROR] Downloading failed\n`, err);
+            await this.stop();
+            throw new PlayError(500, `Downloading failed: ${err.message}`);
+        }
 
-            this.downloadProcess.on('close', async () => {
-                console.log('Downloading closed');
+        if (this.state === State.STOPPING) {
+            return;
+        }
 
-                if (this.state !== State.DOWNLOADING) {
-                    return;
-                }
+        console.log(`Downloaded in ${Date.now() - startTime} ms`);
 
-                const elapsedMs = Date.now() - startTime;
-                console.log(`Video downloaded in ${elapsedMs}ms`);
+        this.state = State.CASTING;
 
-                this.state = State.CASTING;
+        let videoFilepath;
+        try {
+            videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
+        } catch (err) {
+            this.state = State.ERROR;
+            console.error(`[ERROR] Cannot read ${VIDEO_FILEPATH_FILE}\n`, err);
+            await this.stop();
+            throw new PlayError(500, `Error reading file ${VIDEO_FILEPATH_FILE}`);
+        }
 
-                var videoFilepath;
-                try {
-                    videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
-                } catch (err) {
-                    this.state = State.ERROR;
-                    console.error(`[ERROR] Cannot read ${VIDEO_FILEPATH_FILE}\n`, err);
-                    await this.stop();
-                    reject(new PlayError(500, `Error reading file ${VIDEO_FILEPATH_FILE}`));
-                    return;
-                }
+        console.log(`Casting ${url}...`);
 
-                console.log(`Casting ${url}...`);
+        this.vlcProcess = this.spawnWithLogs(this.getVlcExePath(), [`"${videoFilepath}"`, '-I', 'http', '--http-password', `"${this.vlcPassword}"`, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit']);
 
-                this.vlcProcess = this.spawnWithLogs(this.getVlcExePath(), [`"${videoFilepath}"`, '-I', 'http', '--http-password', `"${this.vlcPassword}"`, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit']);
+        try {
+            await this.waitForClose(this.vlcProcess);
+        } catch (err) {
+            this.state = State.ERROR;
+            console.error(`[ERROR] Casting failed\n`, err);
+            await this.stop();
+            throw new PlayError(500, `Casting failed: ${err.message}`);
+        }
 
-                this.vlcProcess.on('error', async (err) => {
-                    this.state = State.ERROR;
-                    console.error(`[ERROR] Casting failed`);
-                    await this.stop();
-                    reject(new PlayError(500, `Casting failed: ${err.message}`));
-                });
+        if (this.state === State.STOPPING) {
+            return;
+        }
 
-                this.vlcProcess.on('close', async () => {
-                    console.log('Casting closed');
+        await this.stop();
+    }
 
-                    if (this.state !== State.CASTING) {
-                        return;
-                    }
-
-                    await this.stop();
-                    resolve();
-                });
-
-            });
-        })
+    waitForClose(proc) {
+        return new Promise((resolve, reject) => {
+            proc.once('close', resolve);
+            proc.once('error', reject);
+        });
     }
 
     async stop() {
@@ -127,6 +124,7 @@ class VideoManager {
 
             return new Promise(resolve => {
                 proc.once('close', resolve);
+                proc.once('error', resolve);
                 proc.kill();
             });
         }
