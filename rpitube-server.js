@@ -12,6 +12,11 @@ const vlcPassword = options['vlc-password'] || 'rpitube';
 const cacheFolder = options['cache-folder'] || 'videos';
 const videoManager = new VideoManager(vlcPassword, cacheFolder);
 
+process.on("SIGINT", () => {
+    videoManager.cleanup();
+    process.exit(130);
+});
+
 app.get('/cast/:ip/:url', function (req, res) {
     const { ip, url } = req.params;
 
