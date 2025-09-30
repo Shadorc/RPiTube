@@ -1,11 +1,11 @@
 const fs = require('fs');
 const express = require('express');
-const net = require('net');
 const app = express();
 const os = require('os');
 const path = require('path');
 
-const VideoManager = require('./video-manager')
+const VideoManager = require('./video-manager');
+const discoverChromecasts = require('./detect-chromecast');
 
 const options = parseArgs();
 const vlcPassword = options['vlc-password'] || 'rpitube';
@@ -17,33 +17,7 @@ process.on("SIGINT", () => {
     process.exit(130);
 });
 
-app.get('/cast/:ip/:url', function (req, res) {
-    const { ip, url } = req.params;
-
-    if (net.isIP(ip) === 0) {
-        console.error(`[ERROR] Invalid IP: ${ip}`);
-        return res.status(400).json({ error: "Invalid IP address" });
-    }
-
-    if (!isValidURL(url)) {
-        console.error(`[ERROR] Invalid URL: ${url}`);
-        return res.status(400).json({ error: "Invalid URL" });
-    }
-
-    manageCache(cacheFolder);
-
-    try {
-        videoManager.play(ip, url);
-    } catch (err) {
-        videoManager.cleanup();
-        return res.status(err.code).json({ error: err.message });
-    }
-
-    videoManager.cleanup();
-    return res.json({ success: true, message: `Cast stopped` });
-});
-
-var srv = app.listen(3000, function () {
+var srv = app.listen(3000, async function () {
     var host = getLocalIP();
     var port = srv.address().port;
 
@@ -56,9 +30,53 @@ ____________ _ _____     _
 \\_| \\_\\_|   |_| \\_/\\__,_|_.__/ \\___|                                    
 `);
 
-    console.log('API URL: http://%s:%s/cast/:chromecast-ip/:video-url', host, port);
+    console.log('API URL: http://%s:%s/cast/:video-url', host, port);
     console.log('VLC interface: http://%s:8080', host);
+
+    console.log('Scanning for Chromecasts...');
+    const devices = await discoverChromecasts();
+    if (devices.length === 0) {
+        console.error('No Chromecasts found');
+        process.exit(0);
+    }
+
+    if (devices.length > 1) {
+        console.log("Multiple devices found, using first one");
+    }
+
+    const device = devices[0];
+    if (device.addresses.count === 0) {
+        console.error('Chromecast IP not found');
+        process.exit(0);
+    }
+
+    const ip = device.addresses[0];
+    const name = device.getTxtValue("md");
+    const room = device.getTxtValue("fn");
+    console.log(`Found ${name} (${room}) at ${ip}`);
+
     console.log('-------------------------------------------------------------------');
+
+    app.get('/cast/:url', function (req, res) {
+        const { url } = req.params;
+
+        if (!isValidURL(url)) {
+            console.error(`[ERROR] Invalid URL: ${url}`);
+            return res.status(400).json({ error: "Invalid URL" });
+        }
+
+        manageCache(cacheFolder);
+
+        try {
+            videoManager.play(ip, url);
+        } catch (err) {
+            videoManager.cleanup();
+            return res.status(err.code).json({ error: err.message });
+        }
+
+        videoManager.cleanup();
+        return res.json({ success: true, message: `Cast stopped` });
+    });
 });
 
 function parseArgs() {
