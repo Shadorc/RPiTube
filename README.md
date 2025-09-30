@@ -37,3 +37,5 @@ The HTML has been slightly modified to remove all the buttons that do not work w
 ## ToDo
 - Add possibility to start a new video when another is still playing
 - Improve HTTP responses
+- Fix setup not working anymore with several js files
+- Fix npm in,stall not having strict versions
