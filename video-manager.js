@@ -57,7 +57,7 @@ class VideoManager {
             }
 
             console.log(`Downloading video ${url}...`);
-            console.time('Downloading video');
+            const startTime = Date.now();
 
             this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
 
@@ -69,11 +69,12 @@ class VideoManager {
             });
 
             this.downloadProcess.on('close', () => {
-                console.timeEnd('Downloading video');
-
                 if (this.state !== State.DOWNLOADING) {
                     return;
                 }
+
+                const elapsedMs = Date.now() - startTime;
+                console.log(`Video downloaded in ${elapsedMs}ms`);
 
                 this.state = State.CASTING;
 
