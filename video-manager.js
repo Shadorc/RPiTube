@@ -45,9 +45,9 @@ class VideoManager {
     }
 
     play(ip, url) {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             if (this.state === State.DOWNLOADING || this.state === State.CASTING) {
-                this.stop();
+                return this.stop();
             }
 
             this.state = State.DOWNLOADING;
@@ -56,19 +56,21 @@ class VideoManager {
                 fs.mkdirSync(this.cacheFolder);
             }
 
-            console.log(`Downloading video ${url}...`);
+            console.log(`Downloading ${url}...`);
             const startTime = Date.now();
 
             this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
 
-            this.downloadProcess.on('error', (err) => {
+            this.downloadProcess.on('error', async (err) => {
                 this.state = State.ERROR;
-                console.error(`[ERROR] Downloading video failed\n`, err);
-                this.stop();
-                reject(new PlayError(500, `Downloading video failed: ${err.message}`));
+                console.error(`[ERROR] Downloading failed\n`, err);
+                await this.stop();
+                reject(new PlayError(500, `Downloading failed: ${err.message}`));
             });
 
-            this.downloadProcess.on('close', () => {
+            this.downloadProcess.on('close', async () => {
+                console.log('Downloading closed');
+
                 if (this.state !== State.DOWNLOADING) {
                     return;
                 }
@@ -84,7 +86,7 @@ class VideoManager {
                 } catch (err) {
                     this.state = State.ERROR;
                     console.error(`[ERROR] Cannot read ${VIDEO_FILEPATH_FILE}\n`, err);
-                    this.stop();
+                    await this.stop();
                     reject(new PlayError(500, `Error reading file ${VIDEO_FILEPATH_FILE}`));
                     return;
                 }
@@ -93,19 +95,21 @@ class VideoManager {
 
                 this.vlcProcess = this.spawnWithLogs(this.getVlcExePath(), [`"${videoFilepath}"`, '-I', 'http', '--http-password', `"${this.vlcPassword}"`, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit']);
 
-                this.vlcProcess.on('error', (err) => {
+                this.vlcProcess.on('error', async (err) => {
                     this.state = State.ERROR;
-                    console.error(`[ERROR] Casting video failed`);
-                    this.stop();
-                    reject(new PlayError(500, `Casting video failed: ${err.message}`));
+                    console.error(`[ERROR] Casting failed`);
+                    await this.stop();
+                    reject(new PlayError(500, `Casting failed: ${err.message}`));
                 });
 
-                this.vlcProcess.on('close', () => {
+                this.vlcProcess.on('close', async () => {
+                    console.log('Casting closed');
+
                     if (this.state !== State.CASTING) {
                         return;
                     }
 
-                    this.stop();
+                    await this.stop();
                     resolve();
                 });
 
@@ -113,18 +117,29 @@ class VideoManager {
         })
     }
 
-    stop() {
+    async stop() {
         this.state = State.STOPPING;
 
-        if (this.state === State.DOWNLOADING && !this.downloadProcess.killed) {
-            this.downloadProcess.kill('SIGKILL');
-        }
-        this.downloadProcess = null;
+        async function killProcess(proc) {
+            if (!proc || proc.killed) {
+                return;
+            }
 
-        if (this.state === State.CASTING && !this.vlcProcess.killed) {
-            this.vlcProcess.kill('SIGKILL');
+            return new Promise(resolve => {
+                proc.once('close', resolve);
+                proc.kill();
+            });
         }
-        this.vlcProcess = null;
+
+        if (this.downloadProcess) {
+            await killProcess(this.downloadProcess);
+            this.downloadProcess = null;
+        }
+
+        if (this.vlcProcess) {
+            await killProcess(this.vlcProcess);
+            this.vlcProcess = null;
+        }
 
         if (fs.existsSync(VIDEO_FILEPATH_FILE)) {
             fs.unlinkSync(VIDEO_FILEPATH_FILE);
