@@ -1,4 +1,4 @@
-const { spawnSync, spawn } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -8,9 +8,10 @@ const VIDEO_FILEPATH_FILE = 'video_filepath.txt' // Text file containing the pat
 
 const State = Object.freeze({
     STOPPED: 0,
-    PLAYING: 1,
-    ERROR: 2,
-    STOPPING: 3,
+    DOWNLOADING: 1,
+    CASTING: 2,
+    ERROR: 3,
+    STOPPING: 4,
 });
 
 class VideoManager {
@@ -45,11 +46,11 @@ class VideoManager {
 
     play(ip, url) {
         return new Promise((resolve, reject) => {
-            if (this.state === State.PLAYING) {
+            if (this.state === State.DOWNLOADING || this.state === State.CASTING) {
                 this.stop();
             }
 
-            this.state = State.PLAYING;
+            this.state = State.DOWNLOADING;
 
             if (!fs.existsSync(this.cacheFolder)) {
                 fs.mkdirSync(this.cacheFolder);
@@ -58,21 +59,23 @@ class VideoManager {
             console.log(`Downloading video ${url}...`);
             console.time('Downloading video');
 
-            this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', `"${VIDEO_FILEPATH_FILE}"`]);
+            this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
 
             this.downloadProcess.on('error', (err) => {
                 this.state = State.ERROR;
                 console.error(`[ERROR] Downloading video failed\n`, err);
+                this.stop();
                 reject(new PlayError(500, `Downloading video failed: ${err.message}`));
             });
 
             this.downloadProcess.on('close', () => {
                 console.timeEnd('Downloading video');
 
-                if (this.state === State.STOPPING) {
-                    resolve();
+                if (this.state !== State.DOWNLOADING) {
                     return;
                 }
+
+                this.state = State.CASTING;
 
                 var videoFilepath;
                 try {
@@ -80,6 +83,7 @@ class VideoManager {
                 } catch (err) {
                     this.state = State.ERROR;
                     console.error(`[ERROR] Cannot read ${VIDEO_FILEPATH_FILE}\n`, err);
+                    this.stop();
                     reject(new PlayError(500, `Error reading file ${VIDEO_FILEPATH_FILE}`));
                     return;
                 }
@@ -91,10 +95,15 @@ class VideoManager {
                 this.vlcProcess.on('error', (err) => {
                     this.state = State.ERROR;
                     console.error(`[ERROR] Casting video failed`);
+                    this.stop();
                     reject(new PlayError(500, `Casting video failed: ${err.message}`));
                 });
 
                 this.vlcProcess.on('close', () => {
+                    if (this.state !== State.CASTING) {
+                        return;
+                    }
+
                     this.stop();
                     resolve();
                 });
@@ -106,23 +115,21 @@ class VideoManager {
     stop() {
         this.state = State.STOPPING;
 
-        if (this.downloadProcess && !this.downloadProcess.killed) {
+        if (this.state === State.DOWNLOADING && !this.downloadProcess.killed) {
             this.downloadProcess.kill('SIGKILL');
         }
+        this.downloadProcess = null;
 
-        if (this.vlcProcess && !this.vlcProcess.killed) {
+        if (this.state === State.CASTING && !this.vlcProcess.killed) {
             this.vlcProcess.kill('SIGKILL');
         }
+        this.vlcProcess = null;
 
-        this.cleanup();
-
-        this.state = State.STOPPED;
-    }
-
-    cleanup() {
         if (fs.existsSync(VIDEO_FILEPATH_FILE)) {
             fs.unlinkSync(VIDEO_FILEPATH_FILE);
         }
+
+        this.state = State.STOPPED;
     }
 }
 
