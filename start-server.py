@@ -8,4 +8,7 @@ def main():
     subprocess.run(cmd, check=True)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Webservice stopped")
