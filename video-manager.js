@@ -58,7 +58,7 @@ class VideoManager {
             console.log(`Downloading video ${url}...`);
             console.time('Downloading video');
 
-            this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${this.cacheFolder}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
+            this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', `"${VIDEO_FILEPATH_FILE}"`]);
 
             this.downloadProcess.on('error', (err) => {
                 this.state = State.ERROR;
