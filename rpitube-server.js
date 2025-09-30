@@ -13,13 +13,14 @@ const cacheFolder = options['cache-folder'] || 'videos';
 const videoManager = new VideoManager(vlcPassword, cacheFolder);
 
 process.on("SIGINT", () => {
+    videoManager.stop();
     videoManager.cleanup();
     process.exit(130);
 });
 
-var srv = app.listen(3000, async function () {
-    var host = getLocalIP();
-    var port = srv.address().port;
+var srv = app.listen(3000, async () => {
+    const host = getLocalIP();
+    const port = srv.address().port;
 
     console.log(`
 ____________ _ _____     _          
@@ -34,6 +35,41 @@ ____________ _ _____     _
     console.log('VLC interface: http://%s:8080', host);
 
     console.log('Scanning for Chromecasts...');
+    const device = await getFirstChromecast();
+    const ip = device.addresses[0];
+    const name = device.getTxtValue("md");
+    const room = device.getTxtValue("fn");
+    console.log(`Found ${name} (${room}) at ${ip}`);
+
+    console.log('-------------------------------------------------------------------');
+
+    app.get('/cast/:url', async (req, res) => {
+        const { url } = req.params;
+
+        if (!isValidURL(url)) {
+            console.error(`[ERROR] Invalid URL: ${url}`);
+            return res.status(400).json({ error: "Invalid URL" });
+        }
+
+        if (videoManager.isPlaying) {
+            videoManager.stop();
+        }
+
+        manageCache(cacheFolder);
+
+        return videoManager.play(ip, url)
+            .then(() => {
+                videoManager.cleanup();
+                return res.json({ success: true, message: `Cast stopped` });
+            })
+            .catch((err) => {
+                videoManager.cleanup();
+                return res.status(err.code).json({ error: err.message });
+            });
+    });
+});
+
+async function getFirstChromecast() {
     const devices = await discoverChromecasts();
     if (devices.length === 0) {
         console.error('No Chromecasts found');
@@ -41,7 +77,7 @@ ____________ _ _____     _
     }
 
     if (devices.length > 1) {
-        console.log("Multiple devices found, using first one");
+        console.log("Multiple Chromecasts found, using first one");
     }
 
     const device = devices[0];
@@ -50,34 +86,8 @@ ____________ _ _____     _
         process.exit(0);
     }
 
-    const ip = device.addresses[0];
-    const name = device.getTxtValue("md");
-    const room = device.getTxtValue("fn");
-    console.log(`Found ${name} (${room}) at ${ip}`);
-
-    console.log('-------------------------------------------------------------------');
-
-    app.get('/cast/:url', function (req, res) {
-        const { url } = req.params;
-
-        if (!isValidURL(url)) {
-            console.error(`[ERROR] Invalid URL: ${url}`);
-            return res.status(400).json({ error: "Invalid URL" });
-        }
-
-        manageCache(cacheFolder);
-
-        try {
-            videoManager.play(ip, url);
-        } catch (err) {
-            videoManager.cleanup();
-            return res.status(err.code).json({ error: err.message });
-        }
-
-        videoManager.cleanup();
-        return res.json({ success: true, message: `Cast stopped` });
-    });
-});
+    return device;
+}
 
 function parseArgs() {
     const options = {};

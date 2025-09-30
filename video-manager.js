@@ -1,4 +1,4 @@
-const { spawnSync } = require('child_process');
+const { spawnSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -10,31 +10,24 @@ class VideoManager {
     constructor(vlcPassword, cacheFolder) {
         this.vlcPassword = vlcPassword;
         this.cacheFolder = cacheFolder;
+        this.isPlaying = false;
     }
 
-    spawnSyncSafe(cmd, args) {
-        try {
-            const result = spawnSync(cmd, args, { stdio: 'inherit', stderr: 'inherit', encoding: 'utf-8' });
+    spawnWithLogs(cmd, args) {
+        const subprocess = spawn(cmd, args);
 
-            if (result.error) {
-                console.error('[ERROR] Command failed:');
-                console.error(`  message: ${result.error}`);
-                return false;
-            }
+        subprocess.stdout.setEncoding('utf8');
+        subprocess.stderr.setEncoding('utf8');
 
-            return true;
-        } catch (error) {
-            console.error('[ERROR] Command failed:');
-            console.error(`  message: ${error.message}`);
-            console.error(`  status: ${error.status}`);
-            if (error.stdout) {
-                console.error(`  stdout: ${error.stdout.toString()}`);
-            }
-            if (error.stderr) {
-                console.error(`  stderr: ${error.stderr.toString()}`);
-            }
-            return false;
-        }
+        subprocess.stdout.on('data', (data) => {
+            console.log(data.trim());
+        });
+
+        subprocess.stderr.on('data', (data) => {
+            console.error(data.trim());
+        });
+
+        return subprocess;
     }
 
     getVlcExePath() {
@@ -44,31 +37,58 @@ class VideoManager {
     }
 
     play(ip, url) {
-        if (!fs.existsSync(this.cacheFolder)) {
-            fs.mkdirSync(this.cacheFolder);
-        }
+        return new Promise((resolve, reject) => {
+            this.isPlaying = true;
 
-        console.time('Downloading video');
-        console.log(`Downloading video ${url}...`);
-        if (!this.spawnSyncSafe('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${this.cacheFolder}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE])) {
-            console.error(`[ERROR] Downloading video failed`);
-            throw new PlayError("Downloading video failed", 500);
-        }
-        console.timeEnd('Downloading video');
+            if (!fs.existsSync(this.cacheFolder)) {
+                fs.mkdirSync(this.cacheFolder);
+            }
 
-        var videoFilepath;
-        try {
-            videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
-        } catch (err) {
-            console.error(`[ERROR] Cannot read ${VIDEO_FILEPATH_FILE}\n`, err);
-            throw new PlayError(`Error reading file ${VIDEO_FILEPATH_FILE}`, 500);
-        }
+            console.log(`Downloading video ${url}...`);
+            console.time('Downloading video');
 
-        console.log(`Casting ${url} to ${ip}...`);
-        if (!this.spawnSyncSafe(this.getVlcExePath(), [videoFilepath, '-I', 'http', '--http-password', this.vlcPassword, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'])) {
-            console.error(`[ERROR] Casting video failed`);
-            throw new PlayError("Casting video failed", 500);
-        }
+            const downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${this.cacheFolder}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
+
+            downloadProcess.on('error', (err) => {
+                this.isPlaying = false;
+                console.error(`[ERROR] Downloading video failed\n`, err);
+                reject(new PlayError(500, `Downloading video failed: ${err.message}`));
+            });
+
+            downloadProcess.on('close', (code) => {
+                console.timeEnd('Downloading video');
+
+                var videoFilepath;
+                try {
+                    videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
+                } catch (err) {
+                    this.isPlaying = false;
+                    console.error(`[ERROR] Cannot read ${VIDEO_FILEPATH_FILE}\n`, err);
+                    reject(new PlayError(500, `Error reading file ${VIDEO_FILEPATH_FILE}`));
+                    return;
+                }
+
+                console.log(`Casting ${url}...`);
+
+                const vlcProcess = this.spawnWithLogs(this.getVlcExePath(), [videoFilepath, '-I', 'http', '--http-password', this.vlcPassword, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit']);
+
+                vlcProcess.on('error', (err) => {
+                    this.isPlaying = false;
+                    console.error(`[ERROR] Casting video failed`);
+                    reject(new PlayError(500, `Casting video failed: ${err.message}`));
+                });
+
+                vlcProcess.on('close', () => {
+                    this.isPlaying = false;
+                    resolve();
+                });
+
+            });
+        })
+    }
+
+    stop() {
+        this.isPlaying = false;
     }
 
     cleanup() {
