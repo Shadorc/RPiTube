@@ -32,6 +32,10 @@ class VideoManager {
             fs.mkdirSync(this.cacheFolder);
         }
 
+        if (fs.existsSync(VIDEO_FILEPATH_FILE)) {
+            fs.unlinkSync(VIDEO_FILEPATH_FILE);
+        }
+
         console.log(`Downloading ${url}...`);
         const startTime = Date.now();
 
