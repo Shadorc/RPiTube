@@ -5,3 +5,5 @@ class PlayError extends Error {
     this.code = code;
   }
 }
+
+module.exports = PlayError;
