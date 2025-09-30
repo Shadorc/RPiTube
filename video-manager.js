@@ -21,29 +21,6 @@ class VideoManager {
         this.state = State.STOPPED;
     }
 
-    spawnWithLogs(cmd, args) {
-        const subprocess = spawn(cmd, args);
-
-        subprocess.stdout.setEncoding('utf8');
-        subprocess.stderr.setEncoding('utf8');
-
-        subprocess.stdout.on('data', (data) => {
-            console.log(data.trim());
-        });
-
-        subprocess.stderr.on('data', (data) => {
-            console.error(data.trim());
-        });
-
-        return subprocess;
-    }
-
-    getVlcExePath() {
-        // Default install path for VLC on Windows
-        const rootPath = process.env["ProgramFiles"] || "C:\\Program Files";
-        return path.join(rootPath, "VideoLAN", "VLC", "vlc.exe");
-    }
-
     async play(ip, url) {
         if (this.state === State.DOWNLOADING || this.state === State.CASTING) {
             await this.stop();
@@ -58,10 +35,10 @@ class VideoManager {
         console.log(`Downloading ${url}...`);
         const startTime = Date.now();
 
-        this.downloadProcess = this.spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
+        this.downloadProcess = spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `"${this.cacheFolder}/%(title)s.%(ext)s"`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
 
         try {
-            await this.waitForClose(this.downloadProcess);
+            await waitForClose(this.downloadProcess);
         } catch (err) {
             this.state = State.ERROR;
             console.error(`[ERROR] Downloading failed\n`, err);
@@ -89,10 +66,10 @@ class VideoManager {
 
         console.log(`Casting ${url}...`);
 
-        this.vlcProcess = this.spawnWithLogs(this.getVlcExePath(), [`"${videoFilepath}"`, '-I', 'http', '--http-password', `"${this.vlcPassword}"`, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit']);
+        this.vlcProcess = spawnWithLogs(getVlcExePath(), [`"${videoFilepath}"`, '-I', 'http', '--http-password', `"${this.vlcPassword}"`, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit']);
 
         try {
-            await this.waitForClose(this.vlcProcess);
+            await waitForClose(this.vlcProcess);
         } catch (err) {
             this.state = State.ERROR;
             console.error(`[ERROR] Casting failed\n`, err);
@@ -105,13 +82,6 @@ class VideoManager {
         }
 
         await this.stop();
-    }
-
-    waitForClose(proc) {
-        return new Promise((resolve, reject) => {
-            proc.once('close', resolve);
-            proc.once('error', reject);
-        });
     }
 
     async stop() {
@@ -145,6 +115,36 @@ class VideoManager {
 
         this.state = State.STOPPED;
     }
+}
+
+function spawnWithLogs(cmd, args) {
+    const subprocess = spawn(cmd, args);
+
+    subprocess.stdout.setEncoding('utf8');
+    subprocess.stderr.setEncoding('utf8');
+
+    subprocess.stdout.on('data', (data) => {
+        console.log(data.trim());
+    });
+
+    subprocess.stderr.on('data', (data) => {
+        console.error(data.trim());
+    });
+
+    return subprocess;
+}
+
+function getVlcExePath() {
+    // Default install path for VLC on Windows
+    const rootPath = process.env["ProgramFiles"] || "C:\\Program Files";
+    return path.join(rootPath, "VideoLAN", "VLC", "vlc.exe");
+}
+
+function waitForClose(proc) {
+    return new Promise((resolve, reject) => {
+        proc.once('close', resolve);
+        proc.once('error', reject);
+    });
 }
 
 module.exports = VideoManager;
