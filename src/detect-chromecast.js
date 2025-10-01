@@ -75,7 +75,7 @@ function discoverChromecasts(timeoutMs = 2500) {
         mdns.query(PTR_QUERY);
 
         // some devices respond a bit later; query again after small interval
-        const repeat = setInterval(() => mdns.query(PTR_QUERY), 1000);
+        const repeat = setInterval(() => mdns.query(PTR_QUERY), 700);
 
         // stop after timeout
         setTimeout(() => {
