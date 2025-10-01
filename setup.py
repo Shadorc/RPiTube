@@ -65,7 +65,7 @@ def main():
     npm = which("npm") or which("npm.cmd")
     if not npm:
         err("npm not found after Node.js installation. Make sure your shell has a refreshed PATH or restart the terminal.")
-    run(f'"{npm}" install express')
+    run(f'"{npm}" install express multicast-dns')
 
     log("Downloading scripts into current directory...")
     
