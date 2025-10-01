@@ -36,4 +36,3 @@ The HTML has been slightly modified to remove all the buttons that do not work w
 
 ## ToDo
 - Improve HTTP responses
-- Fix npm install not having strict versions
