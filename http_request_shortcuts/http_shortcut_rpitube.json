@@ -18,7 +18,7 @@
               "save"
             ]
           },
-          "url": "http://<RPI_IP>:3000/cast/<CHROMECAST_IP>/{{7f3d3e6b-fc09-409a-bebb-75d49b6e3b84}}"
+          "url": "http://<WEBSERVICE_IP>:3000/cast/{{7f3d3e6b-fc09-409a-bebb-75d49b6e3b84}}"
         }
       ]
     }
