@@ -40,7 +40,17 @@ class VideoManager {
         console.log(`Downloading ${url}...`);
         const startTime = Date.now();
 
-        this.downloadProcess = spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${this.cacheFolder}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE], this.isVerbose);
+        this.downloadProcess = spawnWithLogs(
+            'yt-dlp',
+            [
+                url,
+                '-f', 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=1080][vcodec^=avc][acodec^=mp4a]',
+                '-o', `${this.cacheFolder}/%(title)s.%(ext)s`,
+                '--merge-output-format', 'mkv',
+                '--print-to-file',
+                'after_move:filepath', VIDEO_FILEPATH_FILE
+            ],
+            this.isVerbose);
 
         try {
             await waitForClose(this.downloadProcess);
@@ -71,7 +81,18 @@ class VideoManager {
 
         console.log(`Casting ${url}...`);
 
-        this.vlcProcess = spawnWithLogs(getVlcExePath(), [videoFilepath, '-I', 'http', '--http-password', this.vlcPassword, '--sout', '"#chromecast"', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'], this.isVerbose);
+        this.vlcProcess = spawnWithLogs(
+            getVlcExePath(),
+            [
+                videoFilepath,
+                '-I', 'http',
+                '--http-password', this.vlcPassword,
+                '--sout', '#chromecast',
+                `--sout-chromecast-ip=${ip}`,
+                '--demux-filter=demux_chromecast',
+                '--play-and-exit'
+            ],
+            this.isVerbose);
 
         try {
             await waitForClose(this.vlcProcess);
