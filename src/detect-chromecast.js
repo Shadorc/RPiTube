@@ -54,7 +54,9 @@ function discoverChromecasts(timeoutMs = 2500) {
                     const hostname = record.name;
                     const ip = record.data;
                     for (const instanceData of instances.values()) {
-                        if (instanceData.host && (instanceData.host === hostname || instanceData.host === hostname + '.')) {
+                        if (instanceData.host 
+                            && (instanceData.host === hostname || instanceData.host === hostname + '.')
+                            && !instanceData.addresses.includes(ip)) {
                             instanceData.addresses.push(ip);
                         }
                     }
