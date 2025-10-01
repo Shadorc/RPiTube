@@ -15,9 +15,10 @@ const State = Object.freeze({
 });
 
 class VideoManager {
-    constructor(vlcPassword, cacheFolder) {
+    constructor(vlcPassword, cacheFolder, isVerbose) {
         this.vlcPassword = vlcPassword;
         this.cacheFolder = cacheFolder;
+        this.isVerbose = isVerbose;
         this.state = State.STOPPED;
     }
 
@@ -39,7 +40,7 @@ class VideoManager {
         console.log(`Downloading ${url}...`);
         const startTime = Date.now();
 
-        this.downloadProcess = spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${this.cacheFolder}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE]);
+        this.downloadProcess = spawnWithLogs('yt-dlp', [url, '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '-o', `${this.cacheFolder}/%(title)s.%(ext)s`, '--merge-output-format', 'mkv', '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE], this.isVerbose);
 
         try {
             await waitForClose(this.downloadProcess);
@@ -70,7 +71,7 @@ class VideoManager {
 
         console.log(`Casting ${url}...`);
 
-        this.vlcProcess = spawnWithLogs(getVlcExePath(), [videoFilepath, '-I', 'http', '--http-password', this.vlcPassword, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit']);
+        this.vlcProcess = spawnWithLogs(getVlcExePath(), [videoFilepath, '-I', 'http', '--http-password', this.vlcPassword, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'], this.isVerbose);
 
         try {
             await waitForClose(this.vlcProcess);
@@ -121,7 +122,11 @@ class VideoManager {
     }
 }
 
-function spawnWithLogs(cmd, args) {
+function spawnWithLogs(cmd, args, isVerbose) {
+    if (isVerbose) {
+        console.log(`[VERBOSE] Spawning ${cmd} ${args.join(' ')}`)
+    }
+
     const subprocess = spawn(cmd, args);
 
     subprocess.stdout.setEncoding('utf8');

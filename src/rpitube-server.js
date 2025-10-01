@@ -10,7 +10,8 @@ const discoverChromecasts = require('./detect-chromecast');
 const options = parseArgs();
 const vlcPassword = options['vlc-password'] || 'rpitube';
 const cacheFolder = options['cache-folder'] || 'videos';
-const videoManager = new VideoManager(vlcPassword, cacheFolder);
+const isVerbose = options.has('verbose') || false;
+const videoManager = new VideoManager(vlcPassword, cacheFolder, isVerbose);
 
 process.on("SIGINT", () => {
     videoManager.stop();
@@ -69,6 +70,19 @@ async function getFirstChromecast() {
         process.exit(0);
     }
 
+    if (isVerbose) {
+        devices.forEach((d, i) => {
+            console.log(`[VERBOSE] Device #${i + 1}`);
+            console.log('[VERBOSE] Instance:', d.instance);
+            console.log('[VERBOSE] Host:', d.host);
+            console.log('[VERBOSE] Port:', d.port);
+            console.log('[VERBOSE] IPs:', d.addresses.length > 0 ? d.addresses : '(none in MDNS packet)');
+            if (d.txt && d.txt.length) {
+                console.log('[VERBOSE] TXT:', d.txt);
+            }
+        });
+    }
+
     if (devices.length > 1) {
         console.log("Multiple Chromecasts found, using first one");
     }
@@ -83,12 +97,25 @@ async function getFirstChromecast() {
 }
 
 function parseArgs() {
-    const options = {};
-    const args = process.argv.slice(2); // First arg is path to node and second is path to script
-    for (let i = 0; i < args.length; i += 2) {
-        const key = args[i].replace(/^--/, '');
-        const value = args[i + 1];
-        options[key] = value;
+    const KEY_PREFIX = '--';
+
+    const options = new Map();
+    const args = process.argv; // First arg is path to node and second is path to script
+
+    for (let i = 2; i < args.length; i++) {
+        const arg = args[i];
+
+        if (arg.startsWith(KEY_PREFIX)) {
+            const key = arg.slice(KEY_PREFIX.length);
+
+            let value = null;
+            if (i + 1 < args.length && !args[i + 1].startsWith(KEY_PREFIX)) {
+                value = args[i + 1];
+                i++;
+            }
+
+            options.set(key, value);
+        }
     }
     return options;
 }
