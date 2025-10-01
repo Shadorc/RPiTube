@@ -1,6 +1,6 @@
 class ChromecastData {
     constructor(instance) {
-        this.instanceName = instance;
+        this.instance = instance;
         this.addresses = [];
     }
 
