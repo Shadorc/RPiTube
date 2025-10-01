@@ -71,7 +71,7 @@ def main():
     
     SRC_FILES = ["rpitube-server.js", "video-manager.js", "detect-chromecast.js", "chromcast-data.js", "play-error.js"]
     for src_file in SRC_FILES:
-        download_to(f"{RPITUBE_GIT_URL}/{src_file}", cwd / "src" / src_file)
+        download_to(f"{RPITUBE_GIT_URL}/src/{src_file}", cwd / "src" / src_file)
     
     START_FILE = "start-server.py"
     download_to(f"{RPITUBE_GIT_URL}/{START_FILE}", cwd / START_FILE)
