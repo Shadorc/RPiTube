@@ -35,7 +35,5 @@ Leave the username field blank and enter the password (`rpitube` if you didn't d
 The HTML has been slightly modified to remove all the buttons that do not work with the Chromecast.
 
 ## ToDo
-- Add possibility to start a new video when another is still playing
 - Improve HTTP responses
-- Fix setup not working anymore with several js files
-- Fix npm in,stall not having strict versions
+- Fix npm install not having strict versions
