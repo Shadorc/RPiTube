@@ -88,7 +88,7 @@ async function getFirstChromecast() {
     }
 
     const device = devices[0];
-    if (device.addresses.count === 0) {
+    if (device.addresses.length === 0) {
         console.error('Chromecast IP not found');
         process.exit(0);
     }
