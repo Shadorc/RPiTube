@@ -71,7 +71,7 @@ class VideoManager {
 
         console.log(`Casting ${url}...`);
 
-        this.vlcProcess = spawnWithLogs(getVlcExePath(), [videoFilepath, '-I', 'http', '--http-password', this.vlcPassword, '--sout', '#chromecast', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'], this.isVerbose);
+        this.vlcProcess = spawnWithLogs(getVlcExePath(), [videoFilepath, '-I', 'http', '--http-password', this.vlcPassword, '--sout', '"#chromecast"', `--sout-chromecast-ip=${ip}`, '--demux-filter=demux_chromecast', '--play-and-exit'], this.isVerbose);
 
         try {
             await waitForClose(this.vlcProcess);
