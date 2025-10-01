@@ -53,7 +53,8 @@ class VideoManager {
             this.isVerbose);
 
         try {
-            await waitForClose(this.downloadProcess);
+            await waitForClose(this.downloadProcess)
+                .then(() => this.downloadProcess = null);
         } catch (err) {
             this.state = State.ERROR;
             console.error(`[ERROR] Downloading failed\n`, err);
@@ -95,7 +96,8 @@ class VideoManager {
             this.isVerbose);
 
         try {
-            await waitForClose(this.vlcProcess);
+            await waitForClose(this.vlcProcess)
+                .then(() => this.vlcProcess = null);;
         } catch (err) {
             this.state = State.ERROR;
             console.error(`[ERROR] Casting failed\n`, err);
