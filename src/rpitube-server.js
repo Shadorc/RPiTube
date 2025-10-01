@@ -4,6 +4,7 @@ const app = express();
 const os = require('os');
 const path = require('path');
 
+const PlayError = require('./play-error');
 const VideoManager = require('./video-manager');
 const discoverChromecasts = require('./detect-chromecast');
 
@@ -58,7 +59,12 @@ ____________ _ _____     _
                 return res.json({ message: `Cast stopped` });
             })
             .catch((err) => {
-                return res.status(err.code).json({ error: err.message });
+                if (err instanceof PlayError) {
+                    return res.status(err.code).json({ error: err.message });
+                } else {
+                    console.error(err);
+                    return res.status(500).json({ error: err.message });
+                }
             });
     });
 });
