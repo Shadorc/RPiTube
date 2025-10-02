@@ -155,12 +155,13 @@ function spawnWithLogs(cmd, args, isVerbose) {
     subprocess.stdout.setEncoding('utf8');
     subprocess.stderr.setEncoding('utf8');
 
+    const name = path.parse(cmd).name;
     subprocess.stdout.on('data', (data) => {
-        console.log(data.trim());
+        console.log(`[${name}] ${data.trim()}`);
     });
 
     subprocess.stderr.on('data', (data) => {
-        console.error(data.trim());
+        console.error(`[${name}] ${data.trim()}`);
     });
 
     return subprocess;
