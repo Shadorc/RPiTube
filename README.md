@@ -17,11 +17,11 @@ Web service for downloading YouTube videos and casting them to a Chromecast, con
 2. In an admin shell: `py setup.py`
 
 ## Usage
-1/ Start the server using `py start-server.py [--vlc-password <password>] [--cache-folder <folder>] [--verbose]`  
+1/ Start the server using `py start-server.py [--vlc-password <password>] [--cache-folder <folder>] [--port <port>] [--verbose]`  
 2/ Cast a YouTube video:
 - From browser: 
   1. Encode the YouTube URL you want to use using https://www.urlencoder.org
-  2. Connect to `http://<WEBSERVICE_IP>:3000/cast/<ENCODED_URL>`  
+  2. Connect to `http://<WEBSERVICE_IP>:<PORT>/cast/<ENCODED_URL>`  
   
 - From Android:
   1. Download `http_request_shortcuts/http_shortcut_rpitube.json`

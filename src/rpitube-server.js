@@ -9,6 +9,7 @@ const VideoManager = require('./video-manager');
 const discoverChromecasts = require('./detect-chromecast');
 
 const options = parseArgs();
+const port = options['port'] || 3000;
 const vlcPassword = options['vlc-password'] || 'rpitube';
 const cacheFolder = options['cache-folder'] || 'videos';
 const isVerbose = options.has('verbose') || false;
@@ -19,7 +20,7 @@ process.on("SIGINT", () => {
     process.exit(130);
 });
 
-var srv = app.listen(3000, async () => {
+var srv = app.listen(port, async () => {
     const host = getLocalIP();
     const port = srv.address().port;
 
