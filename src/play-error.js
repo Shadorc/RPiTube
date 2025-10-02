@@ -1,5 +1,5 @@
 class PlayError extends Error {
-  constructor(message, code) {
+  constructor(code, message) {
     super(message);
     this.name = "PlayError";
     this.code = code;
