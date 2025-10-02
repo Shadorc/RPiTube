@@ -7,11 +7,11 @@ class ChromecastData {
     getTxtValue(key) {
         let value = 'unknown';
         if (this.txt) {
-            this.txt.forEach(element => {
+            for (const element of this.txt) {
                 if (element.startsWith(`${key}=`)) {
                     value = element.substring(key.length + 1);
                 }
-            });
+            }
         }
 
         return value;
