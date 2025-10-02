@@ -5,11 +5,12 @@
       "name": "Raccourcis",
       "shortcuts": [
         {
-          "bodyContent": "",
+          "bodyContent": "{\n  \"url\":\"{{7f3d3e6b-fc09-409a-bebb-75d49b6e3b84}}\"\n}",
+          "contentType": "application/json",
           "description": "Cast to Chromecast using RPiTube",
           "iconName": "flat_color_brightness_7",
           "id": "a9340a51-3ef8-4559-8542-127832b5f11e",
-          "method": "GET",
+          "method": "POST",
           "name": "RPiTube Cast",
           "responseHandling": {
             "actions": [
@@ -18,20 +19,21 @@
               "save"
             ]
           },
-          "url": "http://<WEBSERVICE_IP>:3000/cast/{{7f3d3e6b-fc09-409a-bebb-75d49b6e3b84}}"
+          "timeout": 30000,
+          "url": "http://<WEBSERVICE_IP>:<WEBSERVICE_PORT>/cast"
         }
       ]
     }
   ],
   "compatibilityVersion": 90,
-  "createdAt": "2025-05-10T22:50:25.491Z",
-  "originDeviceId": "FRZDRMMTY1",
+  "createdAt": "2025-10-02T21:10:21.455Z",
+  "originDeviceId": "BPSTJL8A11",
   "variables": [
     {
       "id": "7f3d3e6b-fc09-409a-bebb-75d49b6e3b84",
       "isShareText": true,
-      "key": "URL",
-      "urlEncode": true
+      "jsonEncode": true,
+      "key": "URL"
     }
   ],
   "version": 91

@@ -20,6 +20,8 @@ process.on("SIGINT", () => {
     process.exit(130);
 });
 
+app.use(express.json()) 
+
 var srv = app.listen(port, async () => {
     const host = getLocalIP();
     const port = srv.address().port;
@@ -33,8 +35,8 @@ ____________ _ _____     _
 \\_| \\_\\_|   |_| \\_/\\__,_|_.__/ \\___|                                    
 `);
 
-    console.log('API URL: http://%s:%s/cast/:video-url', host, port);
-    console.log('VLC interface: http://%s:8080', host);
+    console.log(`Listening on: ${host}:${port}`);
+    console.log(`VLC interface: http://${host}:8080`);
 
     console.log('Scanning for Chromecasts...');
     const device = await getFirstChromecast();
@@ -45,8 +47,8 @@ ____________ _ _____     _
 
     console.log('-------------------------------------------------------------------');
 
-    app.get('/cast/:url', async (req, res) => {
-        const { url } = req.params;
+    app.post('/cast', async (req, res) => {
+        const { url } = req.body;
 
         if (!isValidURL(url)) {
             console.error(`[ERROR] Invalid URL: ${url}`);

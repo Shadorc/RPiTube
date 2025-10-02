@@ -19,10 +19,6 @@ Web service for downloading YouTube videos and casting them to a Chromecast, con
 ## Usage
 1/ Start the server using `py start-server.py [--vlc-password <password>] [--cache-folder <folder>] [--port <port>] [--verbose]`  
 2/ Cast a YouTube video:
-- From browser: 
-  1. Encode the YouTube URL you want to use using https://www.urlencoder.org
-  2. Connect to `http://<WEBSERVICE_IP>:<PORT>/cast/<ENCODED_URL>`  
-  
 - From Android:
   1. Download `http_request_shortcuts/http_shortcut_rpitube.json`
   2. Edit line 21 to set `<WEBSERVICE_IP>`
@@ -32,7 +28,6 @@ Web service for downloading YouTube videos and casting them to a Chromecast, con
 
 3/ Control video using VLC's Web interface available at `http://<WEBSERVICE_IP>:8080`.  
 Leave the username field blank and enter the password (`rpitube` if you didn't defined one using `--vlc-password`).  
-The HTML has been slightly modified to remove all the buttons that do not work with the Chromecast.
 
 ## ToDo
 - Improve HTTP responses
