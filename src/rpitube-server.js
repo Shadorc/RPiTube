@@ -4,9 +4,10 @@ const app = express();
 const os = require('os');
 const path = require('path');
 
-const PlayError = require('./play-error');
 const VideoManager = require('./video-manager');
 const discoverChromecasts = require('./detect-chromecast');
+
+let logs = "";
 
 const options = parseArgs();
 const port = options['port'] || 3000;
@@ -15,12 +16,39 @@ const cacheFolder = options['cache-folder'] || 'videos';
 const isVerbose = options.has('verbose') || false;
 const videoManager = new VideoManager(vlcPassword, cacheFolder, isVerbose);
 
+videoManager.emitter.on('info', (msg) => {
+    console.log(msg);
+    logs += msg + '\n';
+})
+
+videoManager.emitter.on('error', (msg, err) => {
+    const str = `[ERROR] ${msg}`;
+    console.error(str, err);
+
+    logs += str + '\n';
+    logs += err + '\n';
+});
+
+videoManager.emitter.on('process_info', (name, log) => {
+    const str = `[${name}] ${log}`;
+    console.log(str);
+
+    logs += str + '\n';
+});
+
+videoManager.emitter.on('process_error', (name, log) => {
+    const str = `[ERROR] [${name}] ${log}`;
+    console.error(str);
+
+    logs += str + '\n';
+});
+
 process.on("SIGINT", () => {
     videoManager.stop();
     process.exit(130);
 });
 
-app.use(express.json()) 
+app.use(express.json());
 
 var srv = app.listen(port, async () => {
     const host = getLocalIP();
@@ -57,18 +85,24 @@ ____________ _ _____     _
 
         manageCache(cacheFolder);
 
-        return videoManager.play(ip, url)
-            .then(() => {
-                return res.json({ message: `Cast stopped` });
-            })
-            .catch((err) => {
-                if (err instanceof PlayError) {
-                    return res.status(err.code).json({ error: err.message });
-                } else {
-                    console.error(err);
-                    return res.status(500).json({ error: err.message });
-                }
-            });
+        res.sendFile(path.join(__dirname, '/public/index.html'));
+
+        return videoManager.play(ip, url);
+    });
+
+    app.get('/logs', (req, res) => {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const interval = setInterval(() => {
+            res.write(logs);
+        }, 750);
+
+        req.on('close', () => {
+            clearInterval(interval);
+            res.end();
+        });
     });
 });
 

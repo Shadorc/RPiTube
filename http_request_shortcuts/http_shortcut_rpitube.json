@@ -10,6 +10,7 @@
           "description": "Cast to Chromecast using RPiTube",
           "iconName": "flat_color_brightness_7",
           "id": "a9340a51-3ef8-4559-8542-127832b5f11e",
+          "keepConnectionOpen": true,
           "method": "POST",
           "name": "RPiTube Cast",
           "responseHandling": {
@@ -17,7 +18,9 @@
               "rerun",
               "share",
               "save"
-            ]
+            ],
+            "fontSize": 13,
+            "javaScriptEnabled": true
           },
           "timeout": 30000,
           "url": "http://<WEBSERVICE_IP>:<WEBSERVICE_PORT>/cast"
@@ -26,7 +29,7 @@
     }
   ],
   "compatibilityVersion": 90,
-  "createdAt": "2025-10-02T21:10:21.455Z",
+  "createdAt": "2025-10-03T17:06:35.011Z",
   "originDeviceId": "BPSTJL8A11",
   "variables": [
     {

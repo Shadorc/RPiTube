@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>RPiTube</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        #logs {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Logs</h1>
+    <p id="logs">Waiting...</p>
+
+    <script>
+        fetch('/logs')
+            .then(response => {
+                const stream = response.body;
+                const reader = stream.getReader();
+                const readChunk = () => {
+                    reader.read()
+                        .then(({ value, done }) => {
+                            if (done) {
+                                return;
+                            }
+
+                            var logs = new TextDecoder().decode(value);
+                            document.getElementById('logs').innerText = logs;
+                            readChunk();
+                        })
+                        .catch(err => {
+                            console.error(err);
+                        });
+                };
+                readChunk();
+            });
+    </script>
+</body>
+
+</html>

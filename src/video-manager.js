@@ -1,8 +1,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-
-const PlayError = require('./play-error');
+const EventEmitter = require('node:events');
 
 const VIDEO_FILEPATH_FILE = 'video_filepath.txt' // Text file containing the path of the last downloaded video
 
@@ -20,6 +19,7 @@ class VideoManager {
         this.cacheFolder = cacheFolder;
         this.isVerbose = isVerbose;
         this.state = State.STOPPED;
+        this.emitter = new EventEmitter();
     }
 
     async play(ip, url) {
@@ -37,10 +37,10 @@ class VideoManager {
             fs.unlinkSync(VIDEO_FILEPATH_FILE);
         }
 
-        console.log(`Downloading ${url}...`);
+        this.emitter.emit('info', `Downloading ${url}...`);
         const startTime = Date.now();
 
-        this.downloadProcess = spawnWithLogs(
+        this.downloadProcess = this.spawnWithLogs(
             'yt-dlp',
             [
                 url,
@@ -48,7 +48,8 @@ class VideoManager {
                 '-o', `${this.cacheFolder}/%(title)s.%(ext)s`,
                 '--merge-output-format', 'mkv',
                 '--print-to-file',
-                'after_move:filepath', VIDEO_FILEPATH_FILE
+                'after_move:filepath', VIDEO_FILEPATH_FILE,
+                '--cookies', 'C:\\Users\\dcecc\\Downloads\\www.youtube.com_cookies.txt'
             ],
             this.isVerbose);
 
@@ -57,16 +58,16 @@ class VideoManager {
                 .then(() => this.downloadProcess = null);
         } catch (err) {
             this.state = State.ERROR;
-            console.error(`[ERROR] Downloading failed\n`, err);
+            this.emitter.emit('error', 'Downloading failed', err);
             await this.stop();
-            throw new PlayError(500, `Downloading failed: ${err.message}`);
+            return;
         }
 
         if (this.state === State.STOPPING) {
             return;
         }
 
-        console.log(`Downloaded in ${Date.now() - startTime} ms`);
+        this.emitter.emit('info', `Downloaded in ${Date.now() - startTime} ms`);
 
         this.state = State.CASTING;
 
@@ -75,14 +76,14 @@ class VideoManager {
             videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
         } catch (err) {
             this.state = State.ERROR;
-            console.error(`[ERROR] Cannot read ${VIDEO_FILEPATH_FILE}\n`, err);
+            this.emitter.emit('error', 'Cannot read ${VIDEO_FILEPATH_FILE}', err);
             await this.stop();
-            throw new PlayError(500, `Error reading file ${VIDEO_FILEPATH_FILE}`);
+            return;
         }
 
-        console.log(`Casting ${url}...`);
+        this.emitter.emit('info', `Casting ${url}...`);
 
-        this.vlcProcess = spawnWithLogs(
+        this.vlcProcess = this.spawnWithLogs(
             getVlcExePath(),
             [
                 videoFilepath,
@@ -100,9 +101,9 @@ class VideoManager {
                 .then(() => this.vlcProcess = null);;
         } catch (err) {
             this.state = State.ERROR;
-            console.error(`[ERROR] Casting failed\n`, err);
+            this.emitter.emit('error', 'Casting failed', err);
             await this.stop();
-            throw new PlayError(500, `Casting failed: ${err.message}`);
+            return;
         }
 
         if (this.state === State.STOPPING) {
@@ -110,6 +111,8 @@ class VideoManager {
         }
 
         await this.stop();
+
+        this.emitter.emit('info', `Casting ${url} finished`);
     }
 
     async stop() {
@@ -143,28 +146,30 @@ class VideoManager {
 
         this.state = State.STOPPED;
     }
-}
 
-function spawnWithLogs(cmd, args, isVerbose) {
-    if (isVerbose) {
-        console.log(`[VERBOSE] Spawning ${cmd} ${args.join(' ')}`)
+    spawnWithLogs(cmd, args, isVerbose) {
+        if (isVerbose) {
+            this.emitter.emit('info', `[VERBOSE] Spawning ${cmd} ${args.join(' ')}`);
+        }
+
+        const name = path.parse(cmd).name;
+        const subprocess = spawn(cmd, args);
+
+        subprocess.stdout.setEncoding('utf8');
+        subprocess.stderr.setEncoding('utf8');
+
+        subprocess.stdout.on('data', (data) => {
+            const log = data.trim();
+            this.emitter.emit('process_info', name, log);
+        });
+
+        subprocess.stderr.on('data', (data) => {
+            const log = data.trim();
+            this.emitter.emit('process_error', name, log);
+        });
+
+        return subprocess;
     }
-
-    const subprocess = spawn(cmd, args);
-
-    subprocess.stdout.setEncoding('utf8');
-    subprocess.stderr.setEncoding('utf8');
-
-    const name = path.parse(cmd).name;
-    subprocess.stdout.on('data', (data) => {
-        console.log(`[${name}] ${data.trim()}`);
-    });
-
-    subprocess.stderr.on('data', (data) => {
-        console.error(`[${name}] ${data.trim()}`);
-    });
-
-    return subprocess;
 }
 
 function getVlcExePath() {
