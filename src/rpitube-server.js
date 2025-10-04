@@ -19,7 +19,7 @@ let clients = [];
 
 function sendLog(log) {
     for (const client of clients) {
-        client.write(log);
+        client.write(log + '\n');
     }
 }
 
