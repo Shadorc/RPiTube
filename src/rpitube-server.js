@@ -35,18 +35,20 @@ function closeClient(client) {
 }
 
 videoManager.emitter.on('info', (log) => {
-    console.log(log);
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${log}`);
     sendLog(log);
 });
 
 videoManager.emitter.on('error', (log, err) => {
+    const timestamp = new Date().toISOString();
     const str = `[ERROR] ${log}`;
     if (err) {
-        console.error(str, err);
+        console.error(`[${timestamp}] ${str}`, err);
         sendLog(str);
         sendLog(err);
     } else {
-        console.error(str,);
+        console.error(`[${timestamp}] ${str}`);
         sendLog(str);
     }
 });
