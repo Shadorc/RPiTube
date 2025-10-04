@@ -8,11 +8,11 @@ const VideoManager = require('./video-manager');
 const discoverChromecasts = require('./detect-chromecast');
 
 const options = parseArgs();
-const port = options['port'] || 3000;
-const vlcPassword = options['vlc-password'] || 'rpitube';
-const cacheFolder = options['cache-folder'] || 'videos';
+const port = options.get('port') || 3000;
+const vlcPassword = options.get('vlc-password') || 'rpitube';
+const cacheFolder = options.get('cache-folder') || 'videos';
 const isVerbose = options.has('verbose') || false;
-const cookiesFile = options['cookies'] || null;
+const cookiesFile = options.get('cookies') || null;
 const videoManager = new VideoManager(vlcPassword, cacheFolder, isVerbose, cookiesFile);
 
 let clients = [];
