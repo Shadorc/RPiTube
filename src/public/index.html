@@ -3,31 +3,52 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RPiTube</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 20px;
+            padding: 16px;
+            margin: 0;
         }
 
         #logs {
-            font-size: 1.5rem;
+            font-size: 1rem;
             font-weight: bold;
             margin-top: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        @media (min-width: 600px) {
+            #logs {
+                font-size: 1.2rem;
+            }
+        }
+
+        #vlcInterfaceBtn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 14px;
+            font-size: 1rem;
+            cursor: pointer;
+            z-index: 1000;
         }
     </style>
 </head>
 
 <body>
+    <button id="vlcInterfaceBtn">VLC Interface</button>
+
     <h1>Logs</h1>
     <p id="logs">Waiting...</p>
 
     <script>
-        const elmt = document.getElementById('logs');
+        const logsElmt = document.getElementById('logs');
         fetch('/logs')
             .then(response => {
-                const stream = response.body;
-                const reader = stream.getReader();
+                const reader = response.body.getReader();
                 const readChunk = () => {
                     reader.read()
                         .then(({ value, done }) => {
@@ -35,17 +56,25 @@
                                 return;
                             }
 
-                            var logs = new TextDecoder().decode(value);
-                            elmt.innerText += logs + '\n';
+                            const logs = new TextDecoder().decode(value);
+                            logsElmt.innerText += logs + '\n';
                             readChunk();
                         })
                         .catch(err => {
                             console.error(err);
-                            elmt.innerText += err + '\n';
+                            logsElmt.innerText += err + '\n';
                         });
                 };
                 readChunk();
             });
+
+        fetch('/vlc')
+            .then(response => response.json())
+            .then(json => {
+                document.getElementById('vlcInterfaceBtn')
+                    .addEventListener('click', () => window.open(json.address, '_blank'));
+            });
+
     </script>
 </body>
 

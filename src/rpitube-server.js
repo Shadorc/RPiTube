@@ -76,7 +76,8 @@ ____________ _ _____     _
 `);
 
     console.log(`Listening on: ${host}:${port}`);
-    console.log(`VLC interface: http://${host}:8080`);
+    const vlcInterface = `http://${host}:8080`;
+    console.log(`VLC interface: ${vlcInterface}`);
 
     console.log('Scanning for Chromecasts...');
     const device = await getFirstChromecast();
@@ -100,6 +101,10 @@ ____________ _ _____     _
         res.sendFile(path.join(__dirname, '/public/index.html'));
 
         return videoManager.play(ip, url);
+    });
+
+    app.get('/vlc', (req, res) => {
+        return res.json({ address: `${vlcInterface}` });
     });
 
     app.get('/logs', (req, res) => {
