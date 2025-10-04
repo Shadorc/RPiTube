@@ -165,12 +165,12 @@ class VideoManager {
 
         subprocess.stdout.on('data', (data) => {
             const log = data.trim();
-            this.emitter.emit('process_info', name, log);
+            this.emitter.emit('info', `[${name}] ${log}`);
         });
 
         subprocess.stderr.on('data', (data) => {
             const log = data.trim();
-            this.emitter.emit('process_error', name, log);
+            this.emitter.emit('error', `[${name}] ${log}`, null);
         });
 
         return subprocess;

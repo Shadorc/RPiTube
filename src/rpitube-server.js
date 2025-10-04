@@ -30,21 +30,14 @@ videoManager.emitter.on('info', (log) => {
 
 videoManager.emitter.on('error', (log, err) => {
     const str = `[ERROR] ${log}`;
-    console.error(str, err);
-    sendLog(str);
-    sendLog(err);
-});
-
-videoManager.emitter.on('process_info', (name, log) => {
-    const str = `[${name}] ${log}`;
-    console.log(str);
-    sendLog(str);
-});
-
-videoManager.emitter.on('process_error', (name, log) => {
-    const str = `[ERROR] [${name}] ${log}`;
-    console.error(str);
-    sendLog(str);
+    if (err) {
+        console.error(str, err);
+        sendLog(str);
+        sendLog(err);
+    } else {
+        console.error(str,);
+        sendLog(str);
+    }
 });
 
 process.on("SIGINT", () => {
