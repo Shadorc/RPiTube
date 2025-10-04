@@ -117,7 +117,7 @@ class VideoManager {
 
         await this.stop();
 
-        this.emitter.emit('info', `Casting ${url} finished`);
+        this.emitter.emit('info', `Finished casting ${url}`);
     }
 
     async stop() {
