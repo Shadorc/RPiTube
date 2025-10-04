@@ -70,8 +70,8 @@ ____________ _ _____     _
     const device = await getFirstChromecast();
     const ip = device.addresses[0];
     const name = device.getTxtValue("md");
-    const room = device.getTxtValue("fn");
-    console.log(`Found ${name} (${room}) at ${ip}`);
+    const location = device.getTxtValue("fn");
+    console.log(`Found ${name} (${location}) at ${ip}`);
 
     console.log('-------------------------------------------------------------------');
 

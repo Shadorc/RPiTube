@@ -12,14 +12,14 @@ function discoverChromecasts(timeoutMs = 2500) {
             const records = answers.concat(additionals);
 
             // handle PTR -> service instance names
-            for (const ans of records) {
-                if (ans.type === 'PTR') {
-                    if (ans.name !== '_googlecast._tcp.local') {
+            for (const record of records) {
+                if (record.type === 'PTR') {
+                    if (record.name !== '_googlecast._tcp.local') {
                         // Ignore response from other devices
                         return;
                     }
 
-                    const instance = ans.data;
+                    const instance = record.data;
                     if (!instances.has(instance)) {
                         instances.set(instance, new ChromecastData(instance));
                     }
