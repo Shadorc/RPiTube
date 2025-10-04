@@ -13,6 +13,7 @@ const vlcPassword = options.get('vlc-password') || 'rpitube';
 const cacheFolder = options.get('cache-folder') || 'videos';
 const isVerbose = options.has('verbose') || false;
 const cookiesFile = options.get('cookies') || null;
+const chromecastIP = options.get('chromecast-ip') || null;
 const videoManager = new VideoManager(vlcPassword, cacheFolder, isVerbose, cookiesFile);
 
 let clients = [];
@@ -79,12 +80,15 @@ ____________ _ _____     _
     const vlcInterface = `http://${host}:8080`;
     console.log(`VLC interface: ${vlcInterface}`);
 
-    console.log('Scanning for Chromecasts...');
-    const device = await getFirstChromecast();
-    const ip = device.addresses[0];
-    const name = device.getTxtValue("md");
-    const location = device.getTxtValue("fn");
-    console.log(`Found ${name} (${location}) at ${ip}`);
+    let ip = chromecastIP;
+    if (!ip) {
+        console.log('Scanning for Chromecasts...');
+        const device = await getFirstChromecast();
+        const ip = device.addresses[0];
+        const name = device.getTxtValue("md");
+        const location = device.getTxtValue("fn");
+        console.log(`Found ${name} (${location}) at ${ip}`);
+    }
 
     console.log('-------------------------------------------------------------------');
 
