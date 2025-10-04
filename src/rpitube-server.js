@@ -23,10 +23,20 @@ function sendLog(log) {
     }
 }
 
+function closeClient(client) {
+    const idx = clients.indexOf(client);
+    if (idx > -1) {
+        clients.splice(idx, 1);
+    }
+    if (!client.closed) {
+        client.end();
+    }
+}
+
 videoManager.emitter.on('info', (log) => {
     console.log(log);
     sendLog(log);
-})
+});
 
 videoManager.emitter.on('error', (log, err) => {
     const str = `[ERROR] ${log}`;
@@ -42,6 +52,11 @@ videoManager.emitter.on('error', (log, err) => {
 
 process.on("SIGINT", () => {
     videoManager.stop();
+
+    for (const client of clients) {
+        closeClient(client);
+    }
+
     process.exit(130);
 });
 
@@ -94,13 +109,7 @@ ____________ _ _____     _
 
         clients.push(res);
 
-        req.on('close', () => {
-            const idx = clients.indexOf(res);
-            if (idx > -1) {
-                clients.splice(idx, 1);
-            }
-            res.end();
-        });
+        req.on('close', () => closeClient(res));
     });
 });
 
