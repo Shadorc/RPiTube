@@ -14,7 +14,8 @@ const port = options['port'] || 3000;
 const vlcPassword = options['vlc-password'] || 'rpitube';
 const cacheFolder = options['cache-folder'] || 'videos';
 const isVerbose = options.has('verbose') || false;
-const videoManager = new VideoManager(vlcPassword, cacheFolder, isVerbose);
+const cookiesFile = options['cookies'] || null;
+const videoManager = new VideoManager(vlcPassword, cacheFolder, isVerbose, cookiesFile);
 
 videoManager.emitter.on('info', (msg) => {
     console.log(msg);

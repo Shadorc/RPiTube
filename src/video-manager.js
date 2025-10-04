@@ -14,10 +14,12 @@ const State = Object.freeze({
 });
 
 class VideoManager {
-    constructor(vlcPassword, cacheFolder, isVerbose) {
+    constructor(vlcPassword, cacheFolder, isVerbose, cookiesFile) {
         this.vlcPassword = vlcPassword;
         this.cacheFolder = cacheFolder;
         this.isVerbose = isVerbose;
+        this.cookiesFile = cookiesFile;
+
         this.state = State.STOPPED;
         this.emitter = new EventEmitter();
     }
@@ -40,22 +42,25 @@ class VideoManager {
         this.emitter.emit('info', `Downloading ${url}...`);
         const startTime = Date.now();
 
-        this.downloadProcess = this.spawnWithLogs(
-            'yt-dlp',
-            [
-                url,
-                '-f', 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=1080][vcodec^=avc][acodec^=mp4a]',
-                '-o', `${this.cacheFolder}/%(title)s.%(ext)s`,
-                '--merge-output-format', 'mkv',
-                '--print-to-file',
-                'after_move:filepath', VIDEO_FILEPATH_FILE,
-                '--cookies', 'C:\\Users\\dcecc\\Downloads\\www.youtube.com_cookies.txt'
-            ],
-            this.isVerbose);
+        var ytdlpProcessArgs = [
+            url,
+            '-f', 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=1080][vcodec^=avc][acodec^=mp4a]',
+            '-o', `${this.cacheFolder}/%(title)s.%(ext)s`,
+            '--merge-output-format', 'mkv',
+            '--print-to-file',
+            'after_move:filepath', VIDEO_FILEPATH_FILE
+
+        ];
+
+        if (this.cookiesFile) {
+            ytdlpProcessArgs.push('--cookies', this.cookiesFile);
+        }
+
+        this.ytdlpProcess = this.spawnWithLogs('yt-dlp', ytdlpProcessArgs, this.isVerbose);
 
         try {
-            await waitForClose(this.downloadProcess)
-                .then(() => this.downloadProcess = null);
+            await waitForClose(this.ytdlpProcess)
+                .then(() => this.ytdlpProcess = null);
         } catch (err) {
             this.state = State.ERROR;
             this.emitter.emit('error', 'Downloading failed', err);
@@ -130,9 +135,9 @@ class VideoManager {
             });
         }
 
-        if (this.downloadProcess) {
-            await killProcess(this.downloadProcess);
-            this.downloadProcess = null;
+        if (this.ytdlpProcess) {
+            await killProcess(this.ytdlpProcess);
+            this.ytdlpProcess = null;
         }
 
         if (this.vlcProcess) {
