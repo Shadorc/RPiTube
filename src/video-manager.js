@@ -42,7 +42,7 @@ class VideoManager {
         this.emitter.emit('info', `Downloading ${url}...`);
         const startTime = Date.now();
 
-        var ytdlpProcessArgs = [
+        let ytdlpProcessArgs = [
             url,
             '-f', 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=1080][vcodec^=avc][acodec^=mp4a]',
             '-o', `${this.cacheFolder}/%(title)s.%(ext)s`,

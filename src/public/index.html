@@ -23,6 +23,7 @@
     <p id="logs">Waiting...</p>
 
     <script>
+        const elmt = document.getElementById('logs');
         fetch('/logs')
             .then(response => {
                 const stream = response.body;
@@ -35,11 +36,12 @@
                             }
 
                             var logs = new TextDecoder().decode(value);
-                            document.getElementById('logs').innerText = logs;
+                            elmt.innerText += logs + '\n';
                             readChunk();
                         })
                         .catch(err => {
                             console.error(err);
+                            elmt.innerText += err + '\n';
                         });
                 };
                 readChunk();

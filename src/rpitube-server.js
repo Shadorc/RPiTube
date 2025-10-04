@@ -7,8 +7,6 @@ const path = require('path');
 const VideoManager = require('./video-manager');
 const discoverChromecasts = require('./detect-chromecast');
 
-let logs = "";
-
 const options = parseArgs();
 const port = options['port'] || 3000;
 const vlcPassword = options['vlc-password'] || 'rpitube';
@@ -17,31 +15,36 @@ const isVerbose = options.has('verbose') || false;
 const cookiesFile = options['cookies'] || null;
 const videoManager = new VideoManager(vlcPassword, cacheFolder, isVerbose, cookiesFile);
 
-videoManager.emitter.on('info', (msg) => {
-    console.log(msg);
-    logs += msg + '\n';
+let clients = [];
+
+function sendLog(log) {
+    for (const client of clients) {
+        client.write(log);
+    }
+}
+
+videoManager.emitter.on('info', (log) => {
+    console.log(log);
+    sendLog(log);
 })
 
-videoManager.emitter.on('error', (msg, err) => {
-    const str = `[ERROR] ${msg}`;
+videoManager.emitter.on('error', (log, err) => {
+    const str = `[ERROR] ${log}`;
     console.error(str, err);
-
-    logs += str + '\n';
-    logs += err + '\n';
+    sendLog(str);
+    sendLog(err);
 });
 
 videoManager.emitter.on('process_info', (name, log) => {
     const str = `[${name}] ${log}`;
     console.log(str);
-
-    logs += str + '\n';
+    sendLog(str);
 });
 
 videoManager.emitter.on('process_error', (name, log) => {
     const str = `[ERROR] [${name}] ${log}`;
     console.error(str);
-
-    logs += str + '\n';
+    sendLog(str);
 });
 
 process.on("SIGINT", () => {
@@ -96,12 +99,13 @@ ____________ _ _____     _
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        const interval = setInterval(() => {
-            res.write(logs);
-        }, 750);
+        clients.push(res);
 
         req.on('close', () => {
-            clearInterval(interval);
+            const idx = clients.indexOf(res);
+            if (idx > -1) {
+                clients.splice(idx, 1);
+            }
             res.end();
         });
     });
