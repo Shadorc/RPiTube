@@ -8,7 +8,7 @@ const ffmpegPath = require('ffmpeg-static');
 const BIN_DIR = path.join(__dirname, '..', 'bin');
 const VIDEO_FILEPATH_FILE = 'video_filepath.txt'; // Text file containing the path of the last downloaded video
 
-const RECEIVER_APP_ID = 'A9BCCB7C';
+const RECEIVER_APP_ID = '98AC7C3E';
 
 const State = Object.freeze({
     STOPPED: 0,
