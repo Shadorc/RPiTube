@@ -6,6 +6,8 @@
     "start": "node src/rpitube-server.js"
   },
   "dependencies": {
+    "deno": "^2.9.6",
+    "castv2-client": "^1.2.0",
     "express": "5.1.0",
     "ffmpeg-static": "^5.2.0",
     "multicast-dns": "7.2.5"

@@ -2,21 +2,25 @@ const fs = require('fs');
 const express = require('express');
 const app = express();
 const os = require('os');
+const net = require('net');
 const path = require('path');
 
 const VideoManager = require('./video-manager');
 const discoverChromecasts = require('./detect-chromecast');
 
 const options = parseArgs();
-const port = options.get('port') || 3000;
-const vlcPassword = options.get('vlc-password') || 'rpitube';
+const port = Number(options.get('port')) || 3000;
 const cacheFolder = options.get('cache-folder') || 'videos';
 const isVerbose = options.has('verbose') || false;
 const cookiesFile = options.get('cookies') || null;
 const chromecastIP = options.get('chromecast-ip') || null;
-const videoManager = new VideoManager(vlcPassword, cacheFolder, isVerbose, cookiesFile);
+
+// URL the Chromecast uses to fetch the downloaded video from this server
+const mediaBaseUrl = `http://${getLocalIP()}:${port}/media`;
+const videoManager = new VideoManager(cacheFolder, isVerbose, cookiesFile, mediaBaseUrl);
 
 let clients = [];
+let chromecastAddress = chromecastIP; // set after discovery if not given on the command line
 
 function sendLog(log) {
     for (const client of clients) {
@@ -46,17 +50,17 @@ videoManager.emitter.on('error', (log, err) => {
     if (err) {
         console.error(`[${timestamp}] ${str}`, err);
         sendLog(str);
-        sendLog(err);
+        sendLog(String(err));
     } else {
         console.error(`[${timestamp}] ${str}`);
         sendLog(str);
     }
 });
 
-process.on("SIGINT", () => {
-    videoManager.stop();
+process.on('SIGINT', async () => {
+    await videoManager.stop();
 
-    for (const client of clients) {
+    for (const client of [...clients]) {
         closeClient(client);
     }
 
@@ -65,7 +69,72 @@ process.on("SIGINT", () => {
 
 app.use(express.json());
 
+// Serve downloaded videos to the Chromecast (express.static supports range requests)
+app.use('/media', express.static(path.resolve(cacheFolder), {
+    setHeaders: (res) => res.set('Access-Control-Allow-Origin', '*'),
+}));
+
+app.post('/cast', async (req, res) => {
+    if (!chromecastAddress) {
+        return res.status(503).json({ error: 'Chromecast not ready yet' });
+    }
+
+    const { url } = req.body;
+
+    if (!isValidURL(url)) {
+        console.error(`[ERROR] Invalid URL: ${url}`);
+        return res.status(400).json({ error: 'Invalid URL' });
+    }
+
+    manageCache(cacheFolder);
+
+    res.sendFile(path.join(__dirname, '/public/index.html'));
+
+    return videoManager.play(chromecastAddress, url);
+});
+
+// Playback controls
+function control(action) {
+    return (req, res) => {
+        action(req)
+            .then(() => res.sendStatus(204))
+            .catch((e) => res.status(409).json({ error: e.message }));
+    };
+}
+
+app.post('/pause', control(() => videoManager.pause()));
+
+app.post('/resume', control(() => videoManager.resume()));
+
+app.post('/seek', control((req) => {
+    const seconds = Number(req.body.seconds);
+    if (!Number.isFinite(seconds) || seconds < 0) {
+        return Promise.reject(new Error('Invalid "seconds" value'));
+    }
+    return videoManager.seek(seconds);
+}));
+
+app.post('/stop', async (req, res) => {
+    await videoManager.stop();
+    res.sendStatus(204);
+});
+
+app.get('/logs', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    clients.push(res);
+
+    req.on('close', () => closeClient(res));
+});
+
 app.listen(port, async (error) => {
+    if (error) {
+        console.error(`Cannot listen on port ${port}: ${error.message}`);
+        process.exit(1);
+    }
+
     console.log(`
         ____________ _ _____     _          
         | ___ \\ ___ (_)_   _|   | |         
@@ -74,64 +143,29 @@ app.listen(port, async (error) => {
         | |\\ \\| |   | | | | |_| | |_) |  __/
         \\_| \\_\\_|   |_| \\_/\\__,_|_.__/ \\___|                                    
         `);
-        
-    if (error) {
-        console.error(`Cannot listen on port ${port}: ${error.message}`);
-        process.exit(1);
-    }
 
-    const host = getLocalIP();
-    console.log(`Listening on: ${host}:${port}`);
-    const vlcInterface = `http://${host}:8080`;
-    console.log(`VLC interface: ${vlcInterface}`);
+    console.log(`Listening on: ${getLocalIP()}:${port}`);
+    console.log(`Media URL base: ${mediaBaseUrl}`);
 
-    let ip = chromecastIP;
-    if (!ip) {
+    if (!chromecastAddress) {
         console.log('Scanning for Chromecasts...');
         const device = await getFirstChromecast();
-        ip = device.addresses[0];
-        const name = device.getTxtValue("md");
-        const location = device.getTxtValue("fn");
-        console.log(`Found ${name} (${location}) at ${ip}`);
+        chromecastAddress = device.addresses.find((a) => net.isIPv4(a));
+        const name = device.getTxtValue('md');
+        const location = device.getTxtValue('fn');
+        console.log(`Found ${name} (${location}) at ${chromecastAddress}`);
+    } else {
+        console.log(`Using Chromecast at ${chromecastAddress}`);
     }
 
     console.log('-------------------------------------------------------------------');
-
-    app.post('/cast', async (req, res) => {
-        const { url } = req.body;
-
-        if (!isValidURL(url)) {
-            console.error(`[ERROR] Invalid URL: ${url}`);
-            return res.status(400).json({ error: "Invalid URL" });
-        }
-
-        manageCache(cacheFolder);
-
-        res.sendFile(path.join(__dirname, '/public/index.html'));
-
-        return videoManager.play(ip, url);
-    });
-
-    app.get('/vlc', (req, res) => {
-        return res.json({ address: `${vlcInterface}` });
-    });
-
-    app.get('/logs', (req, res) => {
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-
-        clients.push(res);
-
-        req.on('close', () => closeClient(res));
-    });
 });
 
 async function getFirstChromecast() {
     const devices = await discoverChromecasts();
     if (devices.length === 0) {
         console.error('No Chromecasts found');
-        process.exit(0);
+        process.exit(1);
     }
 
     if (isVerbose) {
@@ -148,13 +182,14 @@ async function getFirstChromecast() {
     }
 
     if (devices.length > 1) {
-        console.log("Multiple Chromecasts found, using first one");
+        console.log('Multiple Chromecasts found, using first one');
     }
 
-    const device = devices[0];
-    if (device.addresses.length === 0) {
-        console.error('Chromecast IP not found');
-        process.exit(0);
+    // Prefer a device that has an IPv4 address (link-local IPv6 addresses don't work)
+    const device = devices.find((d) => d.addresses.some((a) => net.isIPv4(a)));
+    if (!device) {
+        console.error('No Chromecast with an IPv4 address found');
+        process.exit(1);
     }
 
     return device;
@@ -203,7 +238,7 @@ function isValidURL(str) {
     try {
         const parsed = new URL(str);
         // Allow only http(s) protocols for safety
-        return parsed.protocol === "http:" || parsed.protocol === "https:";
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
     } catch (err) {
         return false;
     }

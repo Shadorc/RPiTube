@@ -2,11 +2,13 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const EventEmitter = require('node:events');
-const { execSync } = require('child_process');
-const ffmpegPath = require('ffmpeg-static'); // path string, or null on unsupported platforms
+const { Client, DefaultMediaReceiver } = require('castv2-client');
+const ffmpegPath = require('ffmpeg-static');
 
 const BIN_DIR = path.join(__dirname, '..', 'bin');
-const VIDEO_FILEPATH_FILE = 'video_filepath.txt' // Text file containing the path of the last downloaded video
+const VIDEO_FILEPATH_FILE = 'video_filepath.txt'; // Text file containing the path of the last downloaded video
+
+const RECEIVER_APP_ID = 'A9BCCB7C';
 
 const State = Object.freeze({
     STOPPED: 0,
@@ -17,14 +19,17 @@ const State = Object.freeze({
 });
 
 class VideoManager {
-    constructor(vlcPassword, cacheFolder, isVerbose, cookiesFile) {
-        this.vlcPassword = vlcPassword;
+    constructor(cacheFolder, isVerbose, cookiesFile, mediaBaseUrl) {
         this.cacheFolder = cacheFolder;
         this.isVerbose = isVerbose;
         this.cookiesFile = cookiesFile;
+        this.mediaBaseUrl = mediaBaseUrl;
 
         this.state = State.STOPPED;
         this.emitter = new EventEmitter();
+        this.ytdlpProcess = null;
+        this.player = null;
+        this.endCast = null;
     }
 
     async play(ip, url) {
@@ -35,7 +40,7 @@ class VideoManager {
         this.state = State.DOWNLOADING;
 
         if (!fs.existsSync(this.cacheFolder)) {
-            fs.mkdirSync(this.cacheFolder);
+            fs.mkdirSync(this.cacheFolder, { recursive: true });
         }
 
         if (fs.existsSync(VIDEO_FILEPATH_FILE)) {
@@ -45,29 +50,28 @@ class VideoManager {
         this.emitter.emit('info', `Downloading ${url}...`);
         const startTime = Date.now();
 
-        let ytdlpProcessArgs = [
+        const ytdlpArgs = [
             url,
             '-f', 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=1080][vcodec^=avc][acodec^=mp4a]',
             '-o', path.join(this.cacheFolder, '%(title)s.%(ext)s'),
-            '--merge-output-format', 'mkv',
-            '--print-to-file',
-            'after_move:filepath', VIDEO_FILEPATH_FILE
+            '--merge-output-format', 'mp4',
+            '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE
         ];
 
         if (ffmpegPath) {
-            ytdlpProcessArgs.push('--ffmpeg-location', ffmpegPath);
+            ytdlpArgs.push('--ffmpeg-location', ffmpegPath);
         }
 
         if (this.cookiesFile) {
-            ytdlpProcessArgs.push('--cookies', this.cookiesFile);
+            ytdlpArgs.push('--cookies', this.cookiesFile);
         }
 
-        const ytDlpPath = getYtDlpPath();
-        this.ytdlpProcess = this.spawnWithLogs(ytDlpPath, ytdlpProcessArgs, this.isVerbose);
+        const ytdlpPath = getYtDlpPath();
+        this.ytdlpProcess = this.spawnWithLogs(ytdlpPath, ytdlpArgs, this.isVerbose);
 
         try {
-            await waitForClose(this.ytdlpProcess)
-                .then(() => this.ytdlpProcess = null);
+            await waitForClose(this.ytdlpProcess);
+            this.ytdlpProcess = null;
         } catch (err) {
             this.state = State.ERROR;
             this.emitter.emit('error', 'Downloading failed', err);
@@ -79,45 +83,30 @@ class VideoManager {
             return;
         }
 
-        this.emitter.emit('info', `Downloaded in ${Date.now() - startTime} ms`);
+        const elapsed = Date.now() - startTime;
+        this.emitter.emit('info', `Downloaded in ${elapsed} ms`);
 
         this.state = State.CASTING;
 
-        let videoFilepath;
+        let fileName;
         try {
-            videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
+            const videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
+            fileName = path.basename(videoFilepath);
         } catch (err) {
             this.state = State.ERROR;
-            this.emitter.emit('error', `Cannot read ${VIDEO_FILEPATH_FILE}`, err);
+            this.emitter.emit('error', `Cannot read ${VIDEO_FILEPATH_FILE}, download may have failed`, err);
             await this.stop();
             return;
         }
 
-        this.emitter.emit('info', `Casting ${url}...`);
-
-        const vlc = getVlcCommand();
-        if (!vlc) {
-            this.emitter.emit('error', 'Cannot find VLC');
-            return;
+        const mediaUrl = `${this.mediaBaseUrl}/${encodeURIComponent(fileName)}`;
+        this.emitter.emit('info', `Casting ${url} to ${ip}...`);
+        if (this.isVerbose) {
+            this.emitter.emit('info', `[VERBOSE] Media URL: ${mediaUrl}`);
         }
 
-        this.vlcProcess = this.spawnWithLogs(
-            vlc.cmd,
-            [
-                ...vlc.prefix,
-                videoFilepath,
-                '-I', 'http',
-                '--http-password', this.vlcPassword,
-                '--sout', '#chromecast',
-                `--sout-chromecast-ip=${ip}`,
-                '--demux-filter=demux_chromecast',
-                '--play-and-exit'
-            ],
-            this.isVerbose);
-
         try {
-            await waitForClose(this.vlcProcess)
-                .then(() => this.vlcProcess = null);;
+            await this.cast(ip, mediaUrl, fileName);
         } catch (err) {
             this.state = State.ERROR;
             this.emitter.emit('error', 'Casting failed', err);
@@ -134,29 +123,130 @@ class VideoManager {
         this.emitter.emit('info', `Finished casting ${url}`);
     }
 
-    async stop() {
-        this.state = State.STOPPING;
+    cast(ip, mediaUrl, title) {
+        return new Promise((resolve, reject) => {
+            const client = new Client();
+            let settled = false;
 
-        async function killProcess(proc) {
-            if (!proc || proc.killed) {
-                return;
+            this.endCast = (err) => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                this.player = null;
+                this.endCast = null;
+                try {
+                    client.close();
+                } catch {
+                    /* already closed */
+                }
+
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            };
+
+            client.on('error', this.endCast);
+
+            client.connect(ip, () => {
+                client.receiver.launch(RECEIVER_APP_ID, (err, sessions) => {
+                    if (err) {
+                        return this.endCast(err);
+                    }
+
+                    const list = Array.isArray(sessions) ? sessions : [sessions];
+                    const session = list.find((s) => s && s.appId === RECEIVER_APP_ID) || list[0];
+                    if (!session) {
+                        return this.endCast(new Error('Receiver app launched but no session was returned'));
+                    }
+
+                    client.join(session, DefaultMediaReceiver, (err, player) => {
+                        if (err) {
+                            return this.endCast(err);
+                        }
+
+                        this.player = player;
+
+                        player.on('status', (status) => {
+                            if (this.isVerbose) {
+                                this.emitter.emit('info', `[VERBOSE] Player: ${status.playerState} ${status.idleReason || ''}`);
+                            }
+                            if (status.playerState === 'IDLE') {
+                                if (status.idleReason === 'FINISHED') {
+                                    this.endCast();
+                                } else if (status.idleReason === 'ERROR') {
+                                    this.endCast(new Error('The Chromecast could not play this media'));
+                                }
+                            }
+                        });
+
+                        const media = {
+                            contentId: mediaUrl,
+                            contentType: 'video/mp4',
+                            streamType: 'BUFFERED',
+                            metadata: { type: 0, metadataType: 0, title },
+                        };
+
+                        player.load(media, { autoplay: true }, (err) => {
+                            if (err) {
+                                this.endCast(err);
+                            }
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    pause() {
+        return this.#playerCall((player, cb) => player.pause(cb));
+    }
+
+    resume() {
+        return this.#playerCall((player, cb) => player.play(cb));
+    }
+
+    seek(seconds) {
+        return this.#playerCall((player, cb) => player.seek(seconds, cb));
+    }
+
+    #playerCall(fn) {
+        return new Promise((resolve, reject) => {
+            if (!this.player) {
+                return reject(new Error('Nothing is playing'));
             }
 
-            return new Promise(resolve => {
-                proc.once('close', resolve);
-                proc.once('error', resolve);
-                proc.kill();
+            fn(this.player, (err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
             });
-        }
+        });
+    }
+
+    async stop() {
+        this.state = State.STOPPING;
 
         if (this.ytdlpProcess) {
             await killProcess(this.ytdlpProcess);
             this.ytdlpProcess = null;
         }
 
-        if (this.vlcProcess) {
-            await killProcess(this.vlcProcess);
-            this.vlcProcess = null;
+        if (this.player) {
+            try {
+                this.player.stop(() => { });
+            } catch {
+                /* ignore */
+            }
+        }
+
+        if (this.endCast) {
+            this.endCast();
         }
 
         if (fs.existsSync(VIDEO_FILEPATH_FILE)) {
@@ -178,13 +268,11 @@ class VideoManager {
         subprocess.stderr.setEncoding('utf8');
 
         subprocess.stdout.on('data', (data) => {
-            const log = data.trim();
-            this.emitter.emit('info', `[${name}] ${log}`);
+            this.emitter.emit('info', `[${name}] ${data.trim()}`);
         });
 
         subprocess.stderr.on('data', (data) => {
-            const log = data.trim();
-            this.emitter.emit('error', `[${name}] ${log}`, null);
+            this.emitter.emit('error', `[${name}] ${data.trim()}`, null);
         });
 
         return subprocess;
@@ -197,24 +285,16 @@ function getYtDlpPath() {
     return fs.existsSync(local) ? local : 'yt-dlp';
 }
 
-function getVlcCommand() {
-    if (process.platform === 'win32') {
-        const roots = [process.env['ProgramFiles'], process.env['ProgramFiles(x86)']];
-        for (const root of roots.filter(Boolean)) {
-            const exe = path.join(root, 'VideoLAN', 'VLC', 'vlc.exe');
-            if (fs.existsSync(exe)) {
-                return { cmd: exe, prefix: [] };
-            }
-        }
-        return { cmd: 'vlc.exe', prefix: [] };
+function killProcess(proc) {
+    if (!proc || proc.killed) {
+        return Promise.resolve();
     }
 
-    try {
-        execSync('flatpak info org.videolan.VLC', { stdio: 'ignore' });
-        return { cmd: 'flatpak', prefix: ['run', 'org.videolan.VLC'] };
-    } catch {}
-    
-    return null;
+    return new Promise((resolve) => {
+        proc.once('close', resolve);
+        proc.once('error', resolve);
+        proc.kill();
+    });
 }
 
 function waitForClose(proc) {
