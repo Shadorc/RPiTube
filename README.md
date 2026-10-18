@@ -23,7 +23,7 @@ Web service for downloading YouTube videos and casting them to a Chromecast-comp
 2/ Cast a YouTube video:
 - From Android:
   1. Download `http_request_shortcuts/http_shortcut_rpitube.json`
-  2. Edit line 21 to set `<WEBSERVICE_IP>`
+  2. Edit line 26 to set `<WEBSERVICE_IP>` and `<WEBSERVICE_PORT>`
   3. Upload the file on your phone
   4. Open HTTP Request Shortcut settings and import 
   5. From the YouTube app, share a video to `RPiTube Cast`

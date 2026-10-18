@@ -62,7 +62,8 @@ class VideoManager {
             ytdlpProcessArgs.push('--cookies', this.cookiesFile);
         }
 
-        this.ytdlpProcess = this.spawnWithLogs(getYtDlpPath(), ytdlpProcessArgs, this.isVerbose);
+        const ytDlpPath = getYtDlpPath();
+        this.ytdlpProcess = this.spawnWithLogs(ytDlpPath, ytdlpProcessArgs, this.isVerbose);
 
         try {
             await waitForClose(this.ytdlpProcess)

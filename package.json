@@ -1,0 +1,13 @@
+{
+  "name": "rpitube",
+  "private": true,
+  "scripts": {
+    "setup": "node src/setup.js",
+    "start": "node src/rpitube-server.js"
+  },
+  "dependencies": {
+    "express": "5.1.0",
+    "ffmpeg-static": "^5.2.0",
+    "multicast-dns": "7.2.5"
+  }
+}
