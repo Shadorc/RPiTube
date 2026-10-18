@@ -1,3 +1,8 @@
+// Enable castv2 protocol logging when --verbose is given (must run before castv2-client loads)
+if (process.argv.includes('--verbose')) {
+    process.env.DEBUG = [process.env.DEBUG, 'castv2*'].filter(Boolean).join(',');
+}
+
 const fs = require('fs');
 const express = require('express');
 const app = express();

@@ -6,6 +6,7 @@ const { pipeline } = require('stream/promises');
 
 const BIN_DIR = path.join(__dirname, '..', 'bin');
 const BASE = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download';
+const FORCE = process.argv.includes('--force');
 
 function ytDlpAsset() {
     if (process.platform === 'win32') {
@@ -22,6 +23,12 @@ function ytDlpAsset() {
 async function downloadYtDlp() {
     const { file, local } = ytDlpAsset();
     const dest = path.join(BIN_DIR, local);
+
+    if (!FORCE && fs.existsSync(dest) && fs.statSync(dest).size > 0) {
+        console.log(`yt-dlp found at ${dest}, use --force to re-download.`);
+        return;
+    }
+
     fs.mkdirSync(BIN_DIR, { recursive: true });
 
     console.log(`Downloading ${file}...`);
@@ -30,12 +37,21 @@ async function downloadYtDlp() {
         throw new Error(`Download failed: HTTP ${res.status}`);
     }
 
-    await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(dest));
-    fs.chmodSync(dest, 0o755);
+    // Write to a temp file first so an interrupted download never leaves a broken binary
+    const tmp = `${dest}.part`;
+    try {
+        await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(tmp));
+        fs.chmodSync(tmp, 0o755);
+        fs.renameSync(tmp, dest);
+    } catch (err) {
+        fs.rmSync(tmp, { force: true });
+        throw err;
+    }
+
     console.log(`Saved to ${dest}`);
 }
 
-function findVlc() {
+function isVlcInstalled() {
     const ok = (cmd) => {
         try {
             execSync(cmd, { stdio: 'ignore' });
@@ -47,27 +63,25 @@ function findVlc() {
 
     if (process.platform === 'win32') {
         const exe = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'VideoLAN', 'VLC', 'vlc.exe');
-        return (ok('where vlc') || fs.existsSync(exe)) ? 'native' : null;
+        return ok('where vlc') || fs.existsSync(exe);
     }
 
-    if (ok('flatpak info org.videolan.VLC')) {
-        return 'flatpak';
+    if (ok('command -v vlc') || ok('flatpak info org.videolan.VLC')) {
+        return true;
     }
 
-    return null;
+    return false;
 }
 
 (async () => {
     await downloadYtDlp();
 
-    const vlc = findVlc();
-    if (vlc) {
-        console.log(`VLC found (${vlc}).`);
+    if (isVlcInstalled()) {
+        console.log('VLC found.');
+        console.log('\nSetup done. Start the server with: npm start');
     } else {
-        console.log('VLC not found.');
+        console.error('VLC not found. You must install it to continue.');
     }
-
-    console.log('\nSetup done. Start the server with: npm start');
 })().catch((e) => {
     console.error(e.message);
     process.exit(1);
