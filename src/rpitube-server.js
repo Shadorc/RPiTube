@@ -13,6 +13,8 @@ const path = require('path');
 const VideoManager = require('./video-manager');
 const discoverChromecasts = require('./detect-chromecast');
 
+const { parseArgs, isValidURL } = require('./utils');
+
 const options = parseArgs();
 const port = Number(options.get('port')) || 3000;
 const cacheFolder = options.get('cache-folder') || 'videos';
@@ -20,8 +22,10 @@ const isVerbose = options.has('verbose') || false;
 const cookiesFile = options.get('cookies') || null;
 const chromecastIP = options.get('chromecast-ip') || null;
 
+const localIp = getLocalIP();
+
 // URL the Chromecast uses to fetch the downloaded video from this server
-const mediaBaseUrl = `http://${getLocalIP()}:${port}/media`;
+const mediaBaseUrl = `http://${localIp}:${port}/media`;
 const videoManager = new VideoManager(cacheFolder, isVerbose, cookiesFile, mediaBaseUrl);
 
 let clients = [];
@@ -74,7 +78,6 @@ process.on('SIGINT', async () => {
 
 app.use(express.json());
 
-// Serve downloaded videos to the Chromecast (express.static supports range requests)
 app.use('/media', express.static(path.resolve(cacheFolder), {
     setHeaders: (res) => res.set('Access-Control-Allow-Origin', '*'),
 }));
@@ -98,7 +101,6 @@ app.post('/cast', async (req, res) => {
     return videoManager.play(chromecastAddress, url);
 });
 
-// Playback controls
 function control(action) {
     return (req, res) => {
         action(req)
@@ -149,7 +151,7 @@ app.listen(port, async (error) => {
         \\_| \\_\\_|   |_| \\_/\\__,_|_.__/ \\___|                                    
         `);
 
-    console.log(`Listening on: ${getLocalIP()}:${port}`);
+    console.log(`Listening on: ${localIp}:${port}`);
     console.log(`Media URL base: ${mediaBaseUrl}`);
 
     if (!chromecastAddress) {
@@ -200,30 +202,6 @@ async function getFirstChromecast() {
     return device;
 }
 
-function parseArgs() {
-    const KEY_PREFIX = '--';
-
-    const options = new Map();
-    const args = process.argv; // First arg is path to node and second is path to script
-
-    for (let i = 2; i < args.length; i++) {
-        const arg = args[i];
-
-        if (arg.startsWith(KEY_PREFIX)) {
-            const key = arg.slice(KEY_PREFIX.length);
-
-            let value = null;
-            if (i + 1 < args.length && !args[i + 1].startsWith(KEY_PREFIX)) {
-                value = args[i + 1];
-                i++;
-            }
-
-            options.set(key, value);
-        }
-    }
-    return options;
-}
-
 function getLocalIP() {
     const interfaces = os.networkInterfaces();
 
@@ -237,16 +215,6 @@ function getLocalIP() {
     }
 
     return 'unknown';
-}
-
-function isValidURL(str) {
-    try {
-        const parsed = new URL(str);
-        // Allow only http(s) protocols for safety
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-    } catch (err) {
-        return false;
-    }
 }
 
 function manageCache(dirPath, maxFiles = 5) {

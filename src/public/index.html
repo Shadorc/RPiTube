@@ -3,78 +3,431 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
     <title>RPiTube</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 16px;
-            margin: 0;
+        :root {
+            --bg: #f3f5f4;
+            --surface: #ffffff;
+            --ink: #14201c;
+            --muted: #5d6b66;
+            --line: #d5dcd9;
+            --accent: #0b7a64;
+            --accent-ink: #ffffff;
+            --danger: #b3261e;
+            --log-bg: #e9eeec;
+            --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
         }
 
-        #logs {
-            font-size: 1rem;
-            font-weight: bold;
-            margin-top: 10px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        @media (min-width: 600px) {
-            #logs {
-                font-size: 1.2rem;
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f1514;
+                --surface: #19211f;
+                --ink: #e6efec;
+                --muted: #93a39d;
+                --line: #2b3633;
+                --accent: #3fc9a9;
+                --accent-ink: #06231b;
+                --danger: #ff8a80;
+                --log-bg: #131a18;
             }
         }
 
-        #vlcInterfaceBtn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 8px 14px;
-            font-size: 1rem;
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--ink);
+            display: flex;
+            flex-direction: column;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px 8px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        #status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        #status::before {
+            content: "";
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--muted);
+        }
+
+        #status[data-state="busy"]::before {
+            background: #e0a100;
+        }
+
+        #status[data-state="playing"]::before {
+            background: var(--accent);
+        }
+
+        #status[data-state="error"]::before {
+            background: var(--danger);
+        }
+
+        main {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 8px 16px 16px;
+            max-width: 720px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        #logs {
+            flex: 1;
+            min-height: 120px;
+            overflow-y: auto;
+            margin: 0;
+            padding: 12px;
+            background: var(--log-bg);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            font: 0.82rem/1.5 var(--mono);
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        #logs .line.error {
+            color: var(--danger);
+        }
+
+        #logs .line.empty {
+            color: var(--muted);
+        }
+
+        .controls {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 12px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            font: inherit;
+            font-weight: 600;
+            min-height: 56px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: var(--surface);
+            color: var(--ink);
             cursor: pointer;
-            z-index: 1000;
+            touch-action: manipulation;
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--accent-ink);
+        }
+
+        button.danger {
+            color: var(--danger);
+        }
+
+        button:focus-visible,
+        input:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .seek {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .seek label {
+            display: grid;
+            gap: 4px;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        input[type="text"] {
+            font: inherit;
+            font-size: 1.1rem;
+            min-height: 56px;
+            padding: 0 12px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: var(--bg);
+            color: var(--ink);
+            width: 100%;
+        }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: calc(16px + env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            max-width: calc(100% - 32px);
+            padding: 10px 16px;
+            border-radius: 10px;
+            background: var(--ink);
+            color: var(--bg);
+            font-size: 0.9rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+            }
         }
     </style>
 </head>
 
 <body>
-    <button id="vlcInterfaceBtn">VLC Interface</button>
+    <header>
+        <h1>RPiTube</h1>
+        <span id="status" data-state="idle" role="status">Waiting</span>
+    </header>
 
-    <h1>Logs</h1>
-    <p id="logs">Waiting...<br></p>
+    <main>
+        <pre id="logs" aria-live="polite"><span class="line empty">Waiting for activity…</span></pre>
+
+        <section class="controls" aria-label="Playback controls">
+            <div class="row">
+                <button id="toggleBtn" class="primary" type="button" disabled>Pause</button>
+                <button id="stopBtn" class="danger" type="button" disabled>Stop</button>
+            </div>
+            <div class="seek">
+                <label>
+                    Jump to (mm:ss or h:mm:ss)
+                    <input id="seekInput" type="text" inputmode="numeric" placeholder="1:30" autocomplete="off">
+                </label>
+                <button id="seekBtn" type="button" disabled>Go</button>
+            </div>
+        </section>
+    </main>
+
+    <div id="toast" role="alert"></div>
 
     <script>
-        const logsElmt = document.getElementById('logs');
-        fetch('/logs')
-            .then(response => {
+        const logsEl = document.getElementById('logs');
+        const statusEl = document.getElementById('status');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const seekBtn = document.getElementById('seekBtn');
+        const seekInput = document.getElementById('seekInput');
+        const toastEl = document.getElementById('toast');
+
+        const MAX_LINES = 400;
+        let paused = false;
+        let toastTimer;
+
+        function toast(message) {
+            toastEl.textContent = message;
+            toastEl.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3500);
+        }
+
+        function setStatus(text, state) {
+            statusEl.textContent = text;
+            statusEl.dataset.state = state;
+        }
+
+        function setControls(enabled) {
+            toggleBtn.disabled = stopBtn.disabled = seekBtn.disabled = !enabled;
+        }
+
+        function setPaused(value) {
+            paused = value;
+            toggleBtn.textContent = paused ? 'Resume' : 'Pause';
+            if (!setStatus.locked) {
+                setStatus(paused ? 'Paused' : 'Playing', paused ? 'busy' : 'playing');
+            }
+        }
+
+        // Update the status badge and controls from the server log messages
+        function updateFromLog(line) {
+            if (line.startsWith('[ERROR]') && !line.startsWith('[ERROR] [')) {
+                setStatus('Error', 'error');
+                setControls(false);
+            } else if (line.startsWith('Downloading ')) {
+                setStatus('Downloading', 'busy');
+                setControls(false);
+            } else if (line.startsWith('Casting ')) {
+                setPaused(false);
+                setControls(true);
+            } else if (line.startsWith('Finished casting')) {
+                setStatus('Finished', 'idle');
+                setControls(false);
+            }
+        }
+
+        function addLine(text) {
+            if (logsEl.querySelector('.empty')) {
+                logsEl.textContent = '';
+            }
+
+            const nearBottom = logsEl.scrollHeight - logsEl.scrollTop - logsEl.clientHeight < 60;
+            const span = document.createElement('span');
+            span.className = 'line' + (text.startsWith('[ERROR]') ? ' error' : '');
+            span.textContent = text + '\n';
+            logsEl.appendChild(span);
+
+            while (logsEl.childElementCount > MAX_LINES) {
+                logsEl.firstChild.remove();
+            }
+
+            if (nearBottom) {
+                logsEl.scrollTop = logsEl.scrollHeight;
+            }
+
+            updateFromLog(text);
+        }
+
+        // Stream logs from the server; reconnect if the connection drops
+        async function streamLogs() {
+            try {
+                const response = await fetch('/logs');
                 const reader = response.body.getReader();
-                const readChunk = () => {
-                    reader.read()
-                        .then(({ value, done }) => {
-                            if (done) {
-                                return;
-                            }
+                const decoder = new TextDecoder();
+                let buffer = '';
 
-                            const logs = new TextDecoder().decode(value);
-                            logsElmt.innerText += logs + '\n';
-                            readChunk();
-                        })
-                        .catch(err => {
-                            console.error(err);
-                            logsElmt.innerText += err + '\n';
-                        });
-                };
-                readChunk();
-            });
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        break;
+                    }
 
-        fetch('/vlc')
-            .then(response => response.json())
-            .then(json => {
-                document.getElementById('vlcInterfaceBtn')
-                    .addEventListener('click', () => window.open(json.address, '_blank'));
-            });
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // keep any incomplete line for the next chunk
+                    lines.filter((l) => l.trim()).forEach(addLine);
+                }
+            } catch (err) {
+                console.error(err);
+            }
 
+            setStatus('Disconnected', 'error');
+            setControls(false);
+            setTimeout(streamLogs, 3000);
+        }
+
+        async function send(path, body) {
+            try {
+                const response = await fetch(path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body || {}),
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    toast(data.error || `Request failed (${response.status})`);
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                toast('Cannot reach the server');
+                return false;
+            }
+        }
+
+        function parseTime(text) {
+            const parts = text.trim().split(':');
+            if (parts.length === 0 || parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) {
+                return null;
+            }
+            return parts.reduce((total, p) => total * 60 + Number(p), 0);
+        }
+
+        toggleBtn.addEventListener('click', async () => {
+            if (await send(paused ? '/resume' : '/pause')) {
+                setPaused(!paused);
+            }
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            if (await send('/stop')) {
+                setStatus('Stopped', 'idle');
+                setControls(false);
+            }
+        });
+
+        async function seek() {
+            const seconds = parseTime(seekInput.value);
+            if (seconds === null) {
+                toast('Enter a time like 1:30 or 1:02:15');
+                return;
+            }
+            if (await send('/seek', { seconds })) {
+                toast('Jumped to ' + seekInput.value.trim());
+                seekInput.value = '';
+                seekInput.blur();
+            }
+        }
+
+        seekBtn.addEventListener('click', seek);
+        seekInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') seek(); });
+
+        streamLogs();
     </script>
 </body>
 
