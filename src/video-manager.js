@@ -95,6 +95,11 @@ class VideoManager {
         this.emitter.emit('info', `Casting ${url}...`);
 
         const vlc = getVlcCommand();
+        if (!vlc) {
+            this.emitter.emit('error', 'Cannot find VLC');
+            return;
+        }
+
         this.vlcProcess = this.spawnWithLogs(
             vlc.cmd,
             [
@@ -203,22 +208,12 @@ function getVlcCommand() {
         return { cmd: 'vlc.exe', prefix: [] };
     }
 
-    if (process.platform === 'darwin') {
-        return { cmd: '/Applications/VLC.app/Contents/MacOS/VLC', prefix: [] };
-    }
-
-    // Linux: native package first, then Flatpak
-    try {
-        execSync('command -v vlc', { stdio: 'ignore' });
-        return { cmd: 'vlc', prefix: [] };
-    } catch {}
-
     try {
         execSync('flatpak info org.videolan.VLC', { stdio: 'ignore' });
         return { cmd: 'flatpak', prefix: ['run', 'org.videolan.VLC'] };
     } catch {}
     
-    return { cmd: 'vlc', prefix: [] }; // will fail with a clear ENOENT
+    return null;
 }
 
 function waitForClose(proc) {

@@ -1,5 +1,8 @@
 # Node.js
 node_modules/
-package.json
-package-lock.json
+
+# IDE
 .vscode
+
+# Bin
+bin/

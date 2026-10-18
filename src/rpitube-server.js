@@ -65,19 +65,22 @@ process.on("SIGINT", () => {
 
 app.use(express.json());
 
-var srv = app.listen(port, async () => {
-    const host = getLocalIP();
-    const port = srv.address().port;
-
+app.listen(port, async (error) => {
     console.log(`
-____________ _ _____     _          
-| ___ \\ ___ (_)_   _|   | |         
-| |_/ / |_/ /_  | |_   _| |__   ___ 
-|    /|  __/| | | | | | | '_ \\ / _ \\
-| |\\ \\| |   | | | | |_| | |_) |  __/
-\\_| \\_\\_|   |_| \\_/\\__,_|_.__/ \\___|                                    
-`);
+        ____________ _ _____     _          
+        | ___ \\ ___ (_)_   _|   | |         
+        | |_/ / |_/ /_  | |_   _| |__   ___ 
+        |    /|  __/| | | | | | | '_ \\ / _ \\
+        | |\\ \\| |   | | | | |_| | |_) |  __/
+        \\_| \\_\\_|   |_| \\_/\\__,_|_.__/ \\___|                                    
+        `);
+        
+    if (error) {
+        console.error(`Cannot listen on port ${port}: ${error.message}`);
+        process.exit(1);
+    }
 
+    const host = getLocalIP();
     console.log(`Listening on: ${host}:${port}`);
     const vlcInterface = `http://${host}:8080`;
     console.log(`VLC interface: ${vlcInterface}`);
@@ -86,7 +89,7 @@ ____________ _ _____     _
     if (!ip) {
         console.log('Scanning for Chromecasts...');
         const device = await getFirstChromecast();
-        const ip = device.addresses[0];
+        ip = device.addresses[0];
         const name = device.getTxtValue("md");
         const location = device.getTxtValue("fn");
         console.log(`Found ${name} (${location}) at ${ip}`);
