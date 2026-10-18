@@ -2,7 +2,10 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const EventEmitter = require('node:events');
+const { execSync } = require('child_process');
+const ffmpegPath = require('ffmpeg-static'); // path string, or null on unsupported platforms
 
+const BIN_DIR = path.join(__dirname, '..', 'bin');
 const VIDEO_FILEPATH_FILE = 'video_filepath.txt' // Text file containing the path of the last downloaded video
 
 const State = Object.freeze({
@@ -45,18 +48,21 @@ class VideoManager {
         let ytdlpProcessArgs = [
             url,
             '-f', 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=1080][vcodec^=avc][acodec^=mp4a]',
-            '-o', `${this.cacheFolder}/%(title)s.%(ext)s`,
+            '-o', path.join(this.cacheFolder, '%(title)s.%(ext)s'),
             '--merge-output-format', 'mkv',
             '--print-to-file',
             'after_move:filepath', VIDEO_FILEPATH_FILE
-
         ];
+
+        if (ffmpegPath) {
+            ytdlpProcessArgs.push('--ffmpeg-location', ffmpegPath);
+        }
 
         if (this.cookiesFile) {
             ytdlpProcessArgs.push('--cookies', this.cookiesFile);
         }
 
-        this.ytdlpProcess = this.spawnWithLogs('yt-dlp', ytdlpProcessArgs, this.isVerbose);
+        this.ytdlpProcess = this.spawnWithLogs(getYtDlpPath(), ytdlpProcessArgs, this.isVerbose);
 
         try {
             await waitForClose(this.ytdlpProcess)
@@ -81,16 +87,18 @@ class VideoManager {
             videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
         } catch (err) {
             this.state = State.ERROR;
-            this.emitter.emit('error', 'Cannot read ${VIDEO_FILEPATH_FILE}', err);
+            this.emitter.emit('error', `Cannot read ${VIDEO_FILEPATH_FILE}`, err);
             await this.stop();
             return;
         }
 
         this.emitter.emit('info', `Casting ${url}...`);
 
+        const vlc = getVlcCommand();
         this.vlcProcess = this.spawnWithLogs(
-            getVlcExePath(),
+            vlc.cmd,
             [
+                ...vlc.prefix,
                 videoFilepath,
                 '-I', 'http',
                 '--http-password', this.vlcPassword,
@@ -177,10 +185,40 @@ class VideoManager {
     }
 }
 
-function getVlcExePath() {
-    // Default install path for VLC on Windows
-    const rootPath = process.env["ProgramFiles"] || "C:\\Program Files";
-    return path.join(rootPath, "VideoLAN", "VLC", "vlc.exe");
+function getYtDlpPath() {
+    const local = path.join(BIN_DIR, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+    // Prefer the copy downloaded by `npm run setup`, fall back to one on PATH
+    return fs.existsSync(local) ? local : 'yt-dlp';
+}
+
+function getVlcCommand() {
+    if (process.platform === 'win32') {
+        const roots = [process.env['ProgramFiles'], process.env['ProgramFiles(x86)']];
+        for (const root of roots.filter(Boolean)) {
+            const exe = path.join(root, 'VideoLAN', 'VLC', 'vlc.exe');
+            if (fs.existsSync(exe)) {
+                return { cmd: exe, prefix: [] };
+            }
+        }
+        return { cmd: 'vlc.exe', prefix: [] };
+    }
+
+    if (process.platform === 'darwin') {
+        return { cmd: '/Applications/VLC.app/Contents/MacOS/VLC', prefix: [] };
+    }
+
+    // Linux: native package first, then Flatpak
+    try {
+        execSync('command -v vlc', { stdio: 'ignore' });
+        return { cmd: 'vlc', prefix: [] };
+    } catch {}
+
+    try {
+        execSync('flatpak info org.videolan.VLC', { stdio: 'ignore' });
+        return { cmd: 'flatpak', prefix: ['run', 'org.videolan.VLC'] };
+    } catch {}
+    
+    return { cmd: 'vlc', prefix: [] }; // will fail with a clear ENOENT
 }
 
 function waitForClose(proc) {
