@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
 
@@ -51,37 +50,9 @@ async function downloadYtDlp() {
     console.log(`Saved to ${dest}`);
 }
 
-function isVlcInstalled() {
-    const ok = (cmd) => {
-        try {
-            execSync(cmd, { stdio: 'ignore' });
-            return true;
-        } catch {
-            return false;
-        }
-    };
-
-    if (process.platform === 'win32') {
-        const exe = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'VideoLAN', 'VLC', 'vlc.exe');
-        return ok('where vlc') || fs.existsSync(exe);
-    }
-
-    if (ok('command -v vlc') || ok('flatpak info org.videolan.VLC')) {
-        return true;
-    }
-
-    return false;
-}
-
 (async () => {
     await downloadYtDlp();
-
-    if (isVlcInstalled()) {
-        console.log('VLC found.');
-        console.log('\nSetup done. Start the server with: npm start');
-    } else {
-        console.error('VLC not found. You must install it to continue.');
-    }
+    console.log('\nSetup done. Start the server with: npm start');
 })().catch((e) => {
     console.error(e.message);
     process.exit(1);

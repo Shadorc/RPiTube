@@ -34,7 +34,7 @@ const mediaBaseUrl = `http://${localIp}:${port}/media`;
 const videoManager = new VideoManager(cacheFolder, isVerbose, cookiesFile, mediaBaseUrl);
 
 const logClients = new Set();
-let chromecastAddress = options.get('chromecast-ip') || null; // set after discovery if not given on the command line
+let chromecastAddress = null;
 
 // Logs
 
@@ -119,16 +119,12 @@ app.listen(port, async (error) => {
     console.log(BANNER);
     console.log(`Listening on: ${localIp}:${port}`);
     console.log(`Media URL base: ${mediaBaseUrl}`);
+    console.log('Scanning for Chromecasts...');
 
-    if (chromecastAddress) {
-        console.log(`Using Chromecast at ${chromecastAddress}`);
-    } else {
-        console.log('Scanning for Chromecasts...');
-        const { name, location, ip } = await findChromecast();
-        chromecastAddress = ip;
-        console.log(`Found ${name} (${location}) at ${ip}`);
-    }
+    const { name, location, ip } = await findChromecast();
+    chromecastAddress = ip;
 
+    console.log(`Found ${name} (${location}) at ${ip}`);
     console.log('-------------------------------------------------------------------');
 });
 

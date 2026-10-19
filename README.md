@@ -6,7 +6,7 @@ ____________ _ _____     _
 | |\ \| |   | | | | |_| | |_) |  __/
 \_| \_\_|   |_| \_/\__,_|_.__/ \___|  
 ```
-Web service for downloading YouTube videos and casting them to a Chromecast-compatible device, controlled through the VLC web interface.
+Web service for downloading YouTube videos and casting them to a Chromecast-compatible device.
 
 ## Requirements
 - Windows/Linux OS
@@ -19,7 +19,7 @@ Web service for downloading YouTube videos and casting them to a Chromecast-comp
 3. Run `npm run setup`
 
 ## Usage
-1/ Start the server using `npm start [-- [--port <port>] [--cache-folder <folder>] [--cookies <file>] [--chromecast-ip <ip>] [--verbose]]`
+1/ Start the server using `npm start [-- [--port <port>] [--cache-folder <folder>] [--cookies <file>] [--verbose]]`
 2/ Cast a YouTube video:
 - From Android:
   1. Download `http_request_shortcuts/http_shortcut_rpitube.json`
@@ -27,6 +27,3 @@ Web service for downloading YouTube videos and casting them to a Chromecast-comp
   3. Upload the file on your phone
   4. Open HTTP Request Shortcut settings and import 
   5. From the YouTube app, share a video to `RPiTube Cast`
-
-3/ Control video using VLC's Web interface available at `http://<WEBSERVICE_IP>:8080`.  
-Leave the username field blank and enter the password (`rpitube` if you didn't defined one using `--vlc-password`).  
