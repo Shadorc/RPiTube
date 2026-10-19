@@ -19,7 +19,7 @@ Web service for downloading YouTube videos and casting them to a Chromecast-comp
 3. Run `npm run setup`
 
 ## Usage
-1/ Start the server using `npm start [-- [--vlc-password <password>] [--cache-folder <folder>] [--port <port>] [--verbose] [--cookies <file>] [--chromecast-ip <ip>]]`
+1/ Start the server using `npm start [-- [--port <port>] [--cache-folder <folder>] [--cookies <file>] [--chromecast-ip <ip>] [--verbose]]`
 2/ Cast a YouTube video:
 - From Android:
   1. Download `http_request_shortcuts/http_shortcut_rpitube.json`
