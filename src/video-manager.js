@@ -8,14 +8,15 @@ const ffmpegPath = require('ffmpeg-static');
 const BIN_DIR = path.join(__dirname, '..', 'bin');
 const VIDEO_FILEPATH_FILE = 'video_filepath.txt'; // Text file containing the path of the last downloaded video
 
+// Receiver app launched on the TV (the Default Media Receiver is not available on this TV)
 const RECEIVER_APP_ID = '98AC7C3E';
+
+const VIDEO_FORMAT = 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=1080][vcodec^=avc][acodec^=mp4a]';
 
 const State = Object.freeze({
     STOPPED: 0,
     DOWNLOADING: 1,
     CASTING: 2,
-    ERROR: 3,
-    STOPPING: 4,
 });
 
 class VideoManager {
@@ -25,78 +26,50 @@ class VideoManager {
         this.cookiesFile = cookiesFile;
         this.mediaBaseUrl = mediaBaseUrl;
 
-        this.state = State.STOPPED;
         this.emitter = new EventEmitter();
+        this.state = State.STOPPED;
+        this.sessionId = 0; // Incremented by every play() and stop(), lets a running play() detect it was cancelled
         this.ytdlpProcess = null;
         this.player = null;
         this.endCast = null;
     }
 
     async play(ip, url) {
-        if (this.state === State.DOWNLOADING || this.state === State.CASTING) {
+        if (this.state !== State.STOPPED) {
             await this.stop();
         }
 
+        const session = ++this.sessionId;
+        const isCancelled = () => session !== this.sessionId;
+
         this.state = State.DOWNLOADING;
-
-        if (!fs.existsSync(this.cacheFolder)) {
-            fs.mkdirSync(this.cacheFolder, { recursive: true });
-        }
-
-        if (fs.existsSync(VIDEO_FILEPATH_FILE)) {
-            fs.unlinkSync(VIDEO_FILEPATH_FILE);
-        }
+        fs.mkdirSync(this.cacheFolder, { recursive: true });
+        fs.rmSync(VIDEO_FILEPATH_FILE, { force: true });
 
         this.emitter.emit('info', `Downloading ${url}...`);
         const startTime = Date.now();
 
-        const ytdlpArgs = [
-            url,
-            '-f', 'bestvideo[height<=1080][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=1080][vcodec^=avc][acodec^=mp4a]',
-            '-o', path.join(this.cacheFolder, '%(title)s.%(ext)s'),
-            '--merge-output-format', 'mp4',
-            '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE
-        ];
-
-        if (ffmpegPath) {
-            ytdlpArgs.push('--ffmpeg-location', ffmpegPath);
-        }
-
-        if (this.cookiesFile) {
-            ytdlpArgs.push('--cookies', this.cookiesFile);
-        }
-
-        const ytdlpPath = getYtDlpPath();
-        this.ytdlpProcess = this.spawnWithLogs(ytdlpPath, ytdlpArgs, this.isVerbose);
+        this.ytdlpProcess = this.spawnWithLogs(getYtDlpPath(), this.buildYtDlpArgs(url), this.isVerbose);
 
         try {
             await waitForClose(this.ytdlpProcess);
-            this.ytdlpProcess = null;
         } catch (err) {
-            this.state = State.ERROR;
-            this.emitter.emit('error', 'Downloading failed', err);
-            await this.stop();
+            return this.fail('Downloading failed', err);
+        }
+        this.ytdlpProcess = null;
+
+        if (isCancelled()) {
             return;
         }
 
-        if (this.state === State.STOPPING) {
-            return;
-        }
-
-        const elapsed = Date.now() - startTime;
-        this.emitter.emit('info', `Downloaded in ${elapsed} ms`);
-
+        this.emitter.emit('info', `Downloaded in ${Date.now() - startTime} ms`);
         this.state = State.CASTING;
 
         let fileName;
         try {
-            const videoFilepath = fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim();
-            fileName = path.basename(videoFilepath);
+            fileName = path.basename(fs.readFileSync(VIDEO_FILEPATH_FILE, 'utf-8').trim());
         } catch (err) {
-            this.state = State.ERROR;
-            this.emitter.emit('error', `Cannot read ${VIDEO_FILEPATH_FILE}, download may have failed`, err);
-            await this.stop();
-            return;
+            return this.fail(`Cannot read ${VIDEO_FILEPATH_FILE}, download may have failed`, err);
         }
 
         const mediaUrl = `${this.mediaBaseUrl}/${encodeURIComponent(fileName)}`;
@@ -108,129 +81,19 @@ class VideoManager {
         try {
             await this.cast(ip, mediaUrl, fileName);
         } catch (err) {
-            this.state = State.ERROR;
-            this.emitter.emit('error', 'Casting failed', err);
-            await this.stop();
-            return;
+            return this.fail('Casting failed', err);
         }
 
-        if (this.state === State.STOPPING) {
+        if (isCancelled()) {
             return;
         }
 
         await this.stop();
-
         this.emitter.emit('info', `Finished casting ${url}`);
     }
 
-    cast(ip, mediaUrl, title) {
-        return new Promise((resolve, reject) => {
-            const client = new Client();
-            let settled = false;
-
-            this.endCast = (err) => {
-                if (settled) {
-                    return;
-                }
-
-                settled = true;
-                this.player = null;
-                this.endCast = null;
-                try {
-                    client.close();
-                } catch {
-                    /* already closed */
-                }
-
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            };
-
-            client.on('error', this.endCast);
-
-            client.connect(ip, () => {
-                client.receiver.launch(RECEIVER_APP_ID, (err, sessions) => {
-                    if (err) {
-                        return this.endCast(err);
-                    }
-
-                    const list = Array.isArray(sessions) ? sessions : [sessions];
-                    const session = list.find((s) => s && s.appId === RECEIVER_APP_ID) || list[0];
-                    if (!session) {
-                        return this.endCast(new Error('Receiver app launched but no session was returned'));
-                    }
-
-                    client.join(session, DefaultMediaReceiver, (err, player) => {
-                        if (err) {
-                            return this.endCast(err);
-                        }
-
-                        this.player = player;
-
-                        player.on('status', (status) => {
-                            if (this.isVerbose) {
-                                this.emitter.emit('info', `[VERBOSE] Player: ${status.playerState} ${status.idleReason || ''}`);
-                            }
-                            if (status.playerState === 'IDLE') {
-                                if (status.idleReason === 'FINISHED') {
-                                    this.endCast();
-                                } else if (status.idleReason === 'ERROR') {
-                                    this.endCast(new Error('The Chromecast could not play this media'));
-                                }
-                            }
-                        });
-
-                        const media = {
-                            contentId: mediaUrl,
-                            contentType: 'video/mp4',
-                            streamType: 'BUFFERED',
-                            metadata: { type: 0, metadataType: 0, title },
-                        };
-
-                        player.load(media, { autoplay: true }, (err) => {
-                            if (err) {
-                                this.endCast(err);
-                            }
-                        });
-                    });
-                });
-            });
-        });
-    }
-
-    pause() {
-        return this.#playerCall((player, cb) => player.pause(cb));
-    }
-
-    resume() {
-        return this.#playerCall((player, cb) => player.play(cb));
-    }
-
-    seek(seconds) {
-        return this.#playerCall((player, cb) => player.seek(seconds, cb));
-    }
-
-    #playerCall(fn) {
-        return new Promise((resolve, reject) => {
-            if (!this.player) {
-                return reject(new Error('Nothing is playing'));
-            }
-
-            fn(this.player, (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    }
-
     async stop() {
-        this.state = State.STOPPING;
+        this.sessionId++;
 
         if (this.ytdlpProcess) {
             await killProcess(this.ytdlpProcess);
@@ -249,11 +112,111 @@ class VideoManager {
             this.endCast();
         }
 
-        if (fs.existsSync(VIDEO_FILEPATH_FILE)) {
-            fs.unlinkSync(VIDEO_FILEPATH_FILE);
+        fs.rmSync(VIDEO_FILEPATH_FILE, { force: true });
+        this.state = State.STOPPED;
+    }
+
+    async fail(message, err) {
+        this.emitter.emit('error', message, err);
+        await this.stop();
+    }
+
+    // Resolves when playback finishes or is stopped, rejects on error
+    cast(ip, mediaUrl, title) {
+        return new Promise((resolve, reject) => {
+            const client = new Client();
+            let ended = false;
+
+            const end = (err) => {
+                if (ended) {
+                    return;
+                }
+
+                ended = true;
+                this.player = null;
+                this.endCast = null;
+                try {
+                    client.close();
+                } catch {
+                    /* already closed */
+                }
+
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            };
+
+            this.endCast = end;
+            client.on('error', end);
+
+            (async () => {
+                await new Promise((connected) => client.connect(ip, connected));
+
+                const sessions = await withCallback((cb) => client.receiver.launch(RECEIVER_APP_ID, cb));
+                const list = [].concat(sessions);
+                const session = list.find((s) => s && s.appId === RECEIVER_APP_ID) || list[0];
+                if (!session) {
+                    throw new Error('Receiver app launched but no session was returned');
+                }
+                if (ended) {
+                    return;
+                }
+
+                const player = await withCallback((cb) => client.join(session, DefaultMediaReceiver, cb));
+                if (ended) {
+                    return;
+                }
+
+                this.player = player;
+                player.on('status', (status) => this.onPlayerStatus(status, end));
+
+                const media = {
+                    contentId: mediaUrl,
+                    contentType: 'video/mp4',
+                    streamType: 'BUFFERED',
+                    metadata: { type: 0, metadataType: 0, title },
+                };
+                await withCallback((cb) => player.load(media, { autoplay: true }, cb));
+            })().catch(end);
+        });
+    }
+
+    onPlayerStatus(status, end) {
+        if (this.isVerbose) {
+            this.emitter.emit('info', `[VERBOSE] Player: ${status.playerState} ${status.idleReason || ''}`);
         }
 
-        this.state = State.STOPPED;
+        if (status.playerState !== 'IDLE') {
+            return;
+        }
+
+        if (status.idleReason === 'FINISHED') {
+            end();
+        } else if (status.idleReason === 'ERROR') {
+            end(new Error('The Chromecast could not play this media'));
+        }
+    }
+
+    buildYtDlpArgs(url) {
+        const args = [
+            url,
+            '-f', VIDEO_FORMAT,
+            '-o', path.join(this.cacheFolder, '%(title)s.%(ext)s'),
+            '--merge-output-format', 'mp4',
+            '--print-to-file', 'after_move:filepath', VIDEO_FILEPATH_FILE,
+        ];
+
+        if (ffmpegPath) {
+            args.push('--ffmpeg-location', ffmpegPath);
+        }
+
+        if (this.cookiesFile) {
+            args.push('--cookies', this.cookiesFile);
+        }
+
+        return args;
     }
 
     spawnWithLogs(cmd, args, isVerbose) {
@@ -283,6 +246,13 @@ function getYtDlpPath() {
     const local = path.join(BIN_DIR, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
     // Prefer the copy downloaded by `npm run setup`, fall back to one on PATH
     return fs.existsSync(local) ? local : 'yt-dlp';
+}
+
+// Turns a node-style callback API into a promise: withCallback((cb) => obj.method(arg, cb))
+function withCallback(fn) {
+    return new Promise((resolve, reject) => {
+        fn((err, result) => (err ? reject(err) : resolve(result)));
+    });
 }
 
 function killProcess(proc) {
