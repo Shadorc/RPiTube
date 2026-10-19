@@ -121,10 +121,22 @@ app.listen(port, async (error) => {
     console.log(`Media URL base: ${mediaBaseUrl}`);
     console.log('Scanning for Chromecasts...');
 
-    const { name, location, ip } = await findChromecast();
-    chromecastAddress = ip;
+    let devices;
+    do {
+        devices = await findChromecasts();
+        if (devices.length === 0) {
+            console.log('No Chromecasts found, retrying...');
+        }
+    } while (devices.length === 0)
 
-    console.log(`Found ${name} (${location}) at ${ip}`);
+    if (devices.length > 1) {
+        console.log('Multiple Chromecasts found, using first one');
+    }
+
+    const device = devices[0];
+    chromecastAddress = device.getAddress();
+
+    console.log(`Found ${device.getFriendlyName()} at ${chromecastAddress}`);
     console.log('-------------------------------------------------------------------');
 });
 
@@ -135,29 +147,15 @@ function fail(message) {
     process.exit(1);
 }
 
-async function findChromecast() {
+async function findChromecasts() {
     const devices = await discoverChromecasts();
-    if (devices.length === 0) {
-        fail('No Chromecasts found');
-    }
 
     if (isVerbose) {
         devices.forEach(logDevice);
     }
 
-    if (devices.length > 1) {
-        console.log('Multiple Chromecasts found, using first one');
-    }
-
     // Link-local IPv6 addresses don't work, so only consider devices with an IPv4 address
-    for (const device of devices) {
-        const ip = device.addresses.find((address) => net.isIPv4(address));
-        if (ip) {
-            return { name: device.getTxtValue('md'), location: device.getTxtValue('fn'), ip };
-        }
-    }
-
-    fail('No Chromecast with an IPv4 address found');
+    return devices.filter((device) => device.addresses.find((address) => net.isIPv4(address)));
 }
 
 function logDevice(device, index) {
