@@ -134,10 +134,6 @@ app.listen(port, async (error) => {
         }
     } while (devices.length === 0)
 
-    if (devices.length > 1) {
-        console.log('Multiple Chromecasts found, using first one');
-    }
-
     console.log('\nFound Chromecasts:');
     devices.forEach((device, index) => {
         console.log(`  ${index + 1}) ${device.getFriendlyName()} at ${device.getAddress()}`);
