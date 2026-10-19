@@ -16,10 +16,11 @@ Web service for downloading YouTube videos and casting them to a Chromecast-comp
 ## Setup RPiTube
 1. [Optional] [Pass cookies to prevent captcha](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies)
 2. Run `git clone https://github.com/Shadorc/RPiTube`
-3. Run `npm run setup`
+3. Run `npm i`
+4. Run `npm run setup`
 
 ## Usage
-1/ Start the server using `npm start [-- [--port <port>] [--cache-folder <folder>] [--cookies <file>] [--verbose]]`
+1/ Start the server using `npm start [-- [--port <port>] [--cache-folder <folder>] [--cookies <file>] [--verbose]]`  
 2/ Cast a YouTube video:
 - From Android:
   1. Download `http_request_shortcuts/http_shortcut_rpitube.json`
