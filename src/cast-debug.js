@@ -1,3 +1,4 @@
+// Used to determine receiver ID from other app and Chromcast debug data
 // Usage:
 //   node cast-debug.js <tv-ip>              -> status + app availability probe
 //   node cast-debug.js <tv-ip> <appId>      -> same, then tries to LAUNCH that app ID

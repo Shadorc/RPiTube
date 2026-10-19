@@ -14,7 +14,6 @@
             --muted: #5d6b66;
             --line: #d5dcd9;
             --accent: #0b7a64;
-            --accent-ink: #ffffff;
             --danger: #b3261e;
             --log-bg: #e9eeec;
             --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -29,7 +28,6 @@
                 --muted: #93a39d;
                 --line: #2b3633;
                 --accent: #3fc9a9;
-                --accent-ink: #06231b;
                 --danger: #ff8a80;
                 --log-bg: #131a18;
             }
@@ -106,7 +104,6 @@
             min-height: 0;
             display: flex;
             flex-direction: column;
-            gap: 12px;
             padding: 8px 16px 16px;
             max-width: 720px;
             width: 100%;
@@ -115,7 +112,7 @@
 
         #logs {
             flex: 1;
-            min-height: 120px;
+            min-height: 0;
             overflow-y: auto;
             margin: 0;
             padding: 12px;
@@ -134,110 +131,6 @@
         #logs .line.empty {
             color: var(--muted);
         }
-
-        .controls {
-            background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 12px;
-            display: grid;
-            gap: 12px;
-        }
-
-        .row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        button {
-            font: inherit;
-            font-weight: 600;
-            min-height: 56px;
-            border-radius: 12px;
-            border: 1px solid var(--line);
-            background: var(--surface);
-            color: var(--ink);
-            cursor: pointer;
-            touch-action: manipulation;
-        }
-
-        button:active:not(:disabled) {
-            transform: scale(0.98);
-        }
-
-        button:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-        }
-
-        button.primary {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: var(--accent-ink);
-        }
-
-        button.danger {
-            color: var(--danger);
-        }
-
-        button:focus-visible,
-        input:focus-visible {
-            outline: 3px solid var(--accent);
-            outline-offset: 2px;
-        }
-
-        .seek {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 10px;
-            align-items: end;
-        }
-
-        .seek label {
-            display: grid;
-            gap: 4px;
-            font-size: 0.85rem;
-            color: var(--muted);
-        }
-
-        input[type="text"] {
-            font: inherit;
-            font-size: 1.1rem;
-            min-height: 56px;
-            padding: 0 12px;
-            border-radius: 12px;
-            border: 1px solid var(--line);
-            background: var(--bg);
-            color: var(--ink);
-            width: 100%;
-        }
-
-        #toast {
-            position: fixed;
-            left: 50%;
-            bottom: calc(16px + env(safe-area-inset-bottom));
-            transform: translateX(-50%);
-            max-width: calc(100% - 32px);
-            padding: 10px 16px;
-            border-radius: 10px;
-            background: var(--ink);
-            color: var(--bg);
-            font-size: 0.9rem;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-        }
-
-        #toast.show {
-            opacity: 1;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                transition: none !important;
-            }
-        }
     </style>
 </head>
 
@@ -249,75 +142,29 @@
 
     <main>
         <pre id="logs" aria-live="polite"><span class="line empty">Waiting for activity…</span></pre>
-
-        <section class="controls" aria-label="Playback controls">
-            <div class="row">
-                <button id="toggleBtn" class="primary" type="button" disabled>Pause</button>
-                <button id="stopBtn" class="danger" type="button" disabled>Stop</button>
-            </div>
-            <div class="seek">
-                <label>
-                    Jump to (mm:ss or h:mm:ss)
-                    <input id="seekInput" type="text" inputmode="numeric" placeholder="1:30" autocomplete="off">
-                </label>
-                <button id="seekBtn" type="button" disabled>Go</button>
-            </div>
-        </section>
     </main>
-
-    <div id="toast" role="alert"></div>
 
     <script>
         const logsEl = document.getElementById('logs');
         const statusEl = document.getElementById('status');
-        const toggleBtn = document.getElementById('toggleBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const seekBtn = document.getElementById('seekBtn');
-        const seekInput = document.getElementById('seekInput');
-        const toastEl = document.getElementById('toast');
 
         const MAX_LINES = 400;
-        let paused = false;
-        let toastTimer;
-
-        function toast(message) {
-            toastEl.textContent = message;
-            toastEl.classList.add('show');
-            clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3500);
-        }
 
         function setStatus(text, state) {
             statusEl.textContent = text;
             statusEl.dataset.state = state;
         }
 
-        function setControls(enabled) {
-            toggleBtn.disabled = stopBtn.disabled = seekBtn.disabled = !enabled;
-        }
-
-        function setPaused(value) {
-            paused = value;
-            toggleBtn.textContent = paused ? 'Resume' : 'Pause';
-            if (!setStatus.locked) {
-                setStatus(paused ? 'Paused' : 'Playing', paused ? 'busy' : 'playing');
-            }
-        }
-
-        // Update the status badge and controls from the server log messages
+        // Update the status badge from the server log messages
         function updateFromLog(line) {
             if (line.startsWith('[ERROR]') && !line.startsWith('[ERROR] [')) {
                 setStatus('Error', 'error');
-                setControls(false);
             } else if (line.startsWith('Downloading ')) {
                 setStatus('Downloading', 'busy');
-                setControls(false);
             } else if (line.startsWith('Casting ')) {
-                setPaused(false);
-                setControls(true);
+                setStatus('Playing', 'playing');
             } else if (line.startsWith('Finished casting')) {
                 setStatus('Finished', 'idle');
-                setControls(false);
             }
         }
 
@@ -367,65 +214,8 @@
             }
 
             setStatus('Disconnected', 'error');
-            setControls(false);
             setTimeout(streamLogs, 3000);
         }
-
-        async function send(path, body) {
-            try {
-                const response = await fetch(path, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body || {}),
-                });
-                if (!response.ok) {
-                    const data = await response.json().catch(() => ({}));
-                    toast(data.error || `Request failed (${response.status})`);
-                    return false;
-                }
-                return true;
-            } catch (err) {
-                toast('Cannot reach the server');
-                return false;
-            }
-        }
-
-        function parseTime(text) {
-            const parts = text.trim().split(':');
-            if (parts.length === 0 || parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) {
-                return null;
-            }
-            return parts.reduce((total, p) => total * 60 + Number(p), 0);
-        }
-
-        toggleBtn.addEventListener('click', async () => {
-            if (await send(paused ? '/resume' : '/pause')) {
-                setPaused(!paused);
-            }
-        });
-
-        stopBtn.addEventListener('click', async () => {
-            if (await send('/stop')) {
-                setStatus('Stopped', 'idle');
-                setControls(false);
-            }
-        });
-
-        async function seek() {
-            const seconds = parseTime(seekInput.value);
-            if (seconds === null) {
-                toast('Enter a time like 1:30 or 1:02:15');
-                return;
-            }
-            if (await send('/seek', { seconds })) {
-                toast('Jumped to ' + seekInput.value.trim());
-                seekInput.value = '';
-                seekInput.blur();
-            }
-        }
-
-        seekBtn.addEventListener('click', seek);
-        seekInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') seek(); });
 
         streamLogs();
     </script>
