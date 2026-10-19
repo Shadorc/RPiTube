@@ -5,9 +5,9 @@ if (process.argv.includes('--verbose')) {
 
 const express = require('express');
 const fs = require('fs');
-const net = require('net');
 const os = require('os');
 const path = require('path');
+const readline = require('readline');
 
 const VideoManager = require('./video-manager');
 const discoverChromecasts = require('./detect-chromecast');
@@ -123,7 +123,12 @@ app.listen(port, async (error) => {
 
     let devices;
     do {
-        devices = await findChromecasts();
+        devices = await discoverChromecasts();
+
+        if (isVerbose) {
+            devices.forEach(logDevice);
+        }
+
         if (devices.length === 0) {
             console.log('No Chromecasts found, retrying...');
         }
@@ -133,29 +138,58 @@ app.listen(port, async (error) => {
         console.log('Multiple Chromecasts found, using first one');
     }
 
-    const device = devices[0];
-    chromecastAddress = device.getAddress();
+    console.log('\nFound Chromecasts:');
+    devices.forEach((device, index) => {
+        console.log(`  ${index + 1}) ${device.getFriendlyName()} at ${device.getAddress()}`);
+    });
 
-    console.log(`Found ${device.getFriendlyName()} at ${chromecastAddress}`);
+    if (devices.length === 1) {
+        chromecastAddress = devices[0].getAddress();
+        console.log(`\nAuto-selected: ${devices[0].getFriendlyName()}`);
+    } else {
+        await promptDeviceSelection(devices);
+    }
+
     console.log('-------------------------------------------------------------------');
 });
 
 // Helpers
 
+async function promptDeviceSelection(devices) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+
+    return new Promise((resolve) => {
+        function askQuestion() {
+            rl.question(
+                `\nSelect device (1-${devices.length}): `,
+                (answer) => {
+                    const index = parseInt(answer, 10) - 1;
+
+                    if (isNaN(index) || index < 0 || index >= devices.length) {
+                        console.log('Invalid selection. Try again.');
+                        askQuestion();
+                        return;
+                    }
+
+                    const device = devices[index];
+                    chromecastAddress = device.getAddress();
+                    console.log(`\nSelected: ${device.getFriendlyName()} at ${chromecastAddress}`);
+                    rl.close();
+                    resolve();
+                }
+            );
+        }
+
+        askQuestion();
+    });
+}
+
 function fail(message) {
     console.error(message);
     process.exit(1);
-}
-
-async function findChromecasts() {
-    const devices = await discoverChromecasts();
-
-    if (isVerbose) {
-        devices.forEach(logDevice);
-    }
-
-    // Link-local IPv6 addresses don't work, so only consider devices with an IPv4 address
-    return devices.filter((device) => device.addresses.find((address) => net.isIPv4(address)));
 }
 
 function logDevice(device, index) {
